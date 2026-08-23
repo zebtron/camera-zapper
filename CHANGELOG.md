@@ -4,6 +4,18 @@ All notable changes to **Zebtron Camera Zapper** are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/);
 releases use the app's build-number versioning.
 
+## [1.346] — 2026-08-23 · Controlled beta
+
+### Changed
+- Redesigned the application icon around Camera Zapper's one-way, one-to-many workflow: one camera sends media outward to generic cloud, local-disk, and NAS destinations.
+- Removed the former circular-sync and verification-check imagery so the icon cannot be mistaken for bidirectional synchronization.
+- Regenerated the complete macOS iconset, application ICNS, 1024 px master, and 512 px website icon.
+- Updated icon descriptions, alternative text, documentation, screenshots, and release metadata.
+
+### Security / privacy
+- The icon uses generic destination glyphs and contains no third-party service trademarks.
+- No product behavior, credentials, telemetry, cloud visibility, or deletion policy changed in this release.
+
 ## [1.345] — 2026-08-23 · Controlled beta
 
 First public (controlled-beta) release, open-sourced under the MIT license.
@@ -34,4 +46,5 @@ First public (controlled-beta) release, open-sourced under the MIT license.
 - This build is **ad-hoc signed** — on first launch, Control-click the app and choose **Open**.
   It is not yet notarized, and cloud OAuth (Google / Flickr / YouTube) is still in review.
 
+[1.346]: https://github.com/zebtron/camera-zapper/releases/tag/v1.346
 [1.345]: https://github.com/zebtron/camera-zapper/releases/tag/v1.345

@@ -1,4 +1,8 @@
-# Zebtron Camera Zapper 1.345 - Controlled Beta
+# Zebtron Camera Zapper 1.346 - Controlled Beta
+
+## New one-way fan-out icon
+
+Version 1.346 introduces a redesigned app icon showing one camera sending media outward to three generic destinations: cloud, local disk, and NAS. Explicit arrowheads communicate the one-way ingest-and-copy workflow. The previous circular sync arrows and verification-check badge are removed, and no third-party service trademarks appear.
 
 ## Pre-release hardening
 
@@ -9,7 +13,7 @@
 - Made optional compatibility conversion report the built-in macOS `avconvert` dependency accurately.
 - Added VoiceOver semantics to saved/connected device rows.
 - Added deletion-preflight regression tests for verified content, wrong size, wrong hash, and partial-file cleanup.
-- Updated the app, manual, website copy, bug-report template, and package metadata to 1.345.
+- Updated the app, manual, website copy, bug-report template, and package metadata to 1.346.
 
 ## Safety behavior
 

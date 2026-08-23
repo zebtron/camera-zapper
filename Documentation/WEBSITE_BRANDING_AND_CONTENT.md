@@ -4,7 +4,7 @@ This is the starting document for another LLM or web developer building the Came
 
 ## Source material to read
 
-All paths below are relative to the packaged `Zebtron-Camera-Zapper-1.345` project folder:
+All paths below are relative to the packaged `Zebtron-Camera-Zapper-1.346` project folder:
 
 1. `App-Source/Documentation/USER_MANUAL.md` — authoritative behavior, workflow, integrations, troubleshooting, privacy, and deletion safety.
 2. `App-Source/Documentation/INSTALLATION.md` — installation and Android setup steps.
@@ -29,7 +29,7 @@ If documentation conflicts with older copy, the current user manual and app UI w
 
 ## Visual direction
 
-Use a dark navy/charcoal foundation with electric blue for transfer/action, warm amber for the lightning/energy accent, and verified green only for confirmed success. The icon combines a camera, lightning bolt, circular sync arrows, and verification check. Preserve generous space and do not redraw it with service trademarks.
+Use a dark navy/charcoal foundation with electric blue for transfer/action and warm amber for the lightning/energy accent. The icon shows one camera sending media in a clearly one-way fan-out to three generic destinations: cloud, local disk, and NAS. Preserve the arrowheads, generous spacing, and generic destination symbols. Never add circular/bidirectional arrows or service trademarks.
 
 Preferred tone: confident, practical, transparent, slightly playful, and safety-first. Avoid fear marketing and avoid saying a sync is a backup unless it is verified.
 
@@ -97,7 +97,7 @@ Every download button should state the version and macOS requirement. Link the m
 
 - Use real HTML headings in logical order.
 - Maintain WCAG AA contrast and keyboard-visible focus.
-- Alt text for the icon: “Camera Zapper camera, lightning, sync, and verified-backup icon.”
+- Alt text for the icon: “A camera sending media outward to cloud, local-disk, and NAS destinations.”
 - Alt text for screenshots should describe the page and current status shown.
 - Never place API keys, OAuth JSON, personal paths, serial numbers, IP addresses, or account names in public screenshots.
 - Crop screenshots to the app window and review them for personal data before publishing.

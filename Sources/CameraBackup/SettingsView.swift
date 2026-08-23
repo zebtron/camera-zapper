@@ -52,12 +52,12 @@ struct AboutView: View {
                 Link("zebtron.com/zapper", destination: URL(string: "https://zebtron.com/zapper/")!).font(.title3)
                 HStack(spacing: 16) {
                     Link("Privacy", destination: URL(string: "https://zebtron.com/zapper/#privacy")!)
-                    Link("Report a Bug", destination: URL(string: "mailto:zapper@zebtron.com?subject=Camera%20Zapper%201.345%20bug%20report&body=Please%20describe%20what%20happened%3A%0A%0AWhat%20you%20expected%3A%0A%0ADevice%20model%20and%20connection%20method%3A%0A%0AmacOS%20version%3A%0A%0ALast%20visible%20error%3A%0A%0APlease%20remove%20passwords%2C%20API%20secrets%2C%20OAuth%20tokens%2C%20personal%20paths%2C%20and%20private%20filenames%20before%20sending.")!)
+                    Link("Report a Bug", destination: URL(string: "mailto:zapper@zebtron.com?subject=Camera%20Zapper%201.346%20bug%20report&body=Please%20describe%20what%20happened%3A%0A%0AWhat%20you%20expected%3A%0A%0ADevice%20model%20and%20connection%20method%3A%0A%0AmacOS%20version%3A%0A%0ALast%20visible%20error%3A%0A%0APlease%20remove%20passwords%2C%20API%20secrets%2C%20OAuth%20tokens%2C%20personal%20paths%2C%20and%20private%20filenames%20before%20sending.")!)
                     Link("Support on Ko-fi", destination: URL(string: "https://ko-fi.com/zebtron")!)
                 }.font(.caption)
                 Text("Bug reports are appreciated. Camera Zapper is independently maintained in limited spare time, so responses and fixes may take a while. Thank you for being patient.")
                     .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: 460)
-                Text("Beta version 1.345").font(.caption).foregroundStyle(.tertiary)
+                Text("Beta version 1.346").font(.caption).foregroundStyle(.tertiary)
             }
             Spacer()
         }.padding(40).frame(maxWidth: .infinity, maxHeight: .infinity).navigationTitle("About")

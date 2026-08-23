@@ -1,6 +1,6 @@
 # Zebtron Camera Zapper User Manual
 
-![Camera Zapper dashboard](Screenshots/camera-zapper-finished-app.png)
+![Camera Zapper 1.346 dashboard with generic first-run defaults](Screenshots/dashboard-1.346.png)
 
 ## What it does
 
@@ -99,7 +99,7 @@ Choose **Always Allow** for the correctly named app. Different ad-hoc builds can
 
 ## Public beta status
 
-Version 1.345 is suitable for controlled beta testing, but the downloadable public build still needs stable Apple Developer ID signing, hardened-runtime review, notarization, and production OAuth/API review. Until those release gates are complete, macOS may show additional security prompts and testers should keep an independent backup.
+Version 1.346 is suitable for controlled beta testing, but the downloadable public build still needs stable Apple Developer ID signing, hardened-runtime review, notarization, and production OAuth/API review. Until those release gates are complete, macOS may show additional security prompts and testers should keep an independent backup.
 
 ## Support
 
