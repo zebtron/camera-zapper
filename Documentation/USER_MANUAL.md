@@ -1,0 +1,114 @@
+# Zebtron Camera Zapper User Manual
+
+![Camera Zapper dashboard](Screenshots/camera-zapper-finished-app.png)
+
+## What it does
+
+Camera Zapper gives cameras and Android devices one auditable workflow: **move, sync, and delete**. Files are copied to interruption-safe local staging, SHA-256 verified, sent to enabled destinations in priority order, and recorded in durable receipts. Source deletion remains blocked until every required destination succeeds.
+
+## Everyday one-button workflow
+
+### First launch
+
+1. Open **Settings → Services & Priority** before connecting irreplaceable media.
+2. Review the generic Local Device Archive under `~/Pictures/Camera Zapper/Archive`.
+3. Enable a NAS only after macOS has mounted it and you have selected the real writable folder. The shipped `/Volumes/NAS` and `your-nas.local` values are examples, not a configured server.
+4. Enable only the libraries and cloud services you intend to authorize.
+5. Leave deletion on **Always ask** while testing. Automatic source deletion is not enabled by default.
+6. Use **I’ve Reviewed My Destinations** only after the warning list is clear.
+
+1. Connect and unlock the camera, card, phone, or tablet.
+2. Confirm the correct device is **Online**.
+3. Press the large red **Sync, Verify & Safely Delete** button.
+4. Confirm a newly discovered device when prompted.
+5. Keep it connected while the app scans, stages, verifies, syncs, performs deletion preflight, and deletes eligible originals.
+6. Read the final summary. Failed or blocked files remain on the source and in local staging.
+
+The app resumes from receipts after a quit, disconnect, restart, or network failure.
+
+## Advanced controls
+
+- **Scan & Preview** inventories without copying.
+- **Start Verified Backup** stages and verifies sources.
+- **Run Full Workflow** processes enabled services without final deletion.
+- **Verify & Delete from Source** rechecks required receipts and removes eligible originals.
+- Per-service **Catch Up** or **Resume** processes staged files for one destination.
+
+## Services and priority
+
+Enabled services run top to bottom. Drag to reorder. **Must succeed before deleting source** makes a service a deletion gate.
+
+- **Local Device Archive:** interruption-safe staging; retired after required durable services finish according to cache policy.
+- **Primary NAS Archive:** copies and SHA-256 verifies on a volume mounted by macOS.
+- **Google Photos:** uploads supported media at Google’s API-limited pace and creates a session/device album.
+- **Apple Photos:** imports supported media into Photos.
+- **Flickr:** uploads supported media privately and hidden; oversized files are logged and skipped.
+- **NeoFinder:** catalogs verified destination files and may be required.
+- **YouTube Video Backup:** uploads supported videos privately without notifying subscribers.
+
+All cloud uploads are **private-only by design**. There is no in-app public visibility control.
+
+## Current file-format support
+
+Camera Zapper can discover, stage, hash, archive to local/NAS storage, and catalog these formats without changing the original:
+
+- Photos: `.jpg`, `.jpeg`, `.heic`, `.heif`, `.png`, `.tif`, `.tiff`
+- Camera RAW: `.arw`, `.raf`, `.cr2`, `.cr3`, `.nef`, `.nrw`, `.orf`, `.rw2`, `.dng`, `.gpr`
+- Video: `.mp4`, `.mov`, `.m4v`, `.mkv`, `.avi`, `.mts`, `.m2ts`, `.3gp`, `.webm`
+
+Destination APIs accept narrower sets:
+
+- Google Photos and Apple Photos: JPG/JPEG, HEIC, PNG, GIF, TIFF, DNG, MOV, MP4, and M4V as currently implemented.
+- Flickr: JPG/JPEG, PNG, GIF, TIFF, BMP, MOV, MP4, M4V, AVI, WMV, MPEG/MPG, 3GP, M2TS, OGG, and OGV, subject to Flickr limits (photos under 200 MB and videos under 1 GB; the app uses a small safety margin).
+- YouTube: MOV, MP4, M4V, MKV, and AVI in the current adapter.
+- NeoFinder and local/NAS archives operate on verified originals rather than a cloud codec list.
+
+Optional compatibility processing creates an additional MP4 for supported video formats other than MP4 and MKV. MP4 and MKV are retained unchanged, and the original file is always preserved. A format being ingestible does not guarantee that every cloud provider will accept it; configure each service’s accepted media types accordingly.
+
+## Offline travel
+
+When a NAS/LAN is unavailable, verified media remains in the configured local cache. Catch-up resumes when the destination returns over LAN or VPN. Never manually remove pending cache content.
+
+## Devices and history
+
+Previously seen devices remain listed while offline with nickname, icon, facts, last-seen time, connection method, capacity, counts, and history. Sync controls stay disabled until reconnection.
+
+## Safe deletion
+
+Every file is preflighted again and needs receipts from all applicable required services. Inapplicable processors—such as transcoding an already-compatible MP4 or MKV—do not block deletion. A per-file error is logged and unrelated files continue where safe. Keep automatic deletion off until each device/destination has passed manual testing.
+
+## Android troubleshooting
+
+Camera Zapper uses Android Debug Bridge (ADB) to detect Android hardware, list media, calculate hashes on the source, copy data, and perform explicitly confirmed deletion. Install Android Platform Tools before first Android use. With Homebrew, run `brew install android-platform-tools`; Android Studio can install the same platform-tools package. Relaunch Camera Zapper afterward.
+
+If a Galaxy Tab S7+ or another Android device is missing:
+
+1. Unlock it and reconnect using a known data cable.
+2. Set USB control to **This device** and USB use to **Transferring files**.
+3. Confirm Developer options and USB debugging.
+4. Accept the computer fingerprint and choose **Always allow**.
+5. Choose **Probe Again**.
+6. Run `adb devices -l`; state must be `device`, not `unauthorized` or `offline`.
+7. If needed, run `adb kill-server`, reconnect, and probe again.
+
+Dummy emulators such as a Nexus 4 are ignored unless they expose real user media. Revoke stale USB debugging authorizations if the fingerprint prompt never appears.
+
+## Repeated Keychain prompts
+
+Choose **Always Allow** for the correctly named app. Different ad-hoc builds can have different signing identities, causing repeat prompts; the public notarized build will use a stable identity.
+
+## Public beta status
+
+Version 1.345 is suitable for controlled beta testing, but the downloadable public build still needs stable Apple Developer ID signing, hardened-runtime review, notarization, and production OAuth/API review. Until those release gates are complete, macOS may show additional security prompts and testers should keep an independent backup.
+
+## Support
+
+- <https://zebtron.com/zapper/>
+- <zapper@zebtron.com>
+- <https://ko-fi.com/zebtron>
+
+### Reporting a bug
+
+Use **Report a Bug** in Help or About. The prefilled email asks for the app version, device model, connection method, steps to reproduce, expected result, and last visible error. Review anything you attach and remove passwords, API secrets, OAuth tokens, personal paths, and private filenames.
+
+Camera Zapper is independently maintained in limited spare time. Every useful report is appreciated, but replies and fixes may take a while. Thank you for being patient.

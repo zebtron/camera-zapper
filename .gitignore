@@ -1,0 +1,29 @@
+# ---- Build artifacts ----
+.build/
+dist/
+work/
+DerivedData/
+*.o
+*.swiftmodule
+
+# ---- Xcode user data (if Xcode is ever used) ----
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+xcuserdata/
+
+# ---- macOS ----
+.DS_Store
+
+# ---- Secrets / credentials — NEVER commit these ----
+*.env
+.env*
+*.pem
+*.p12
+*.pfx
+*.key
+*.keystore
+credentials.json
+client_secret*.json
+GoogleService-Info.plist
+Secrets.plist
+secrets.json
