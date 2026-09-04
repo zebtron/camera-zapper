@@ -56,12 +56,12 @@ struct AboutView: View {
                 Link("zebtron.com/zapper", destination: URL(string: "https://zebtron.com/zapper/")!).font(.title3)
                 HStack(spacing: 16) {
                     Link("Privacy", destination: URL(string: "https://zebtron.com/zapper/#privacy")!)
-                    Link("Report a Bug", destination: URL(string: "mailto:zapper@zebtron.com?subject=Camera%20Zapper%201.348%20bug%20report&body=Please%20describe%20what%20happened%3A%0A%0AWhat%20you%20expected%3A%0A%0ADevice%20model%20and%20connection%20method%3A%0A%0AmacOS%20version%3A%0A%0ALast%20visible%20error%3A%0A%0APlease%20remove%20passwords%2C%20API%20secrets%2C%20OAuth%20tokens%2C%20personal%20paths%2C%20and%20private%20filenames%20before%20sending.")!)
+                    Link("Report a Bug", destination: URL(string: "mailto:zapper@zebtron.com?subject=Camera%20Zapper%201.349%20bug%20report&body=Please%20describe%20what%20happened%3A%0A%0AWhat%20you%20expected%3A%0A%0ADevice%20model%20and%20connection%20method%3A%0A%0AmacOS%20version%3A%0A%0ALast%20visible%20error%3A%0A%0APlease%20remove%20passwords%2C%20API%20secrets%2C%20OAuth%20tokens%2C%20personal%20paths%2C%20and%20private%20filenames%20before%20sending.")!)
                     Link("Support on Ko-fi", destination: URL(string: "https://ko-fi.com/zebtron")!)
                 }.font(.caption)
                 Text("Bug reports are appreciated. Camera Zapper is independently maintained in limited spare time, so responses and fixes may take a while. Thank you for being patient.")
                     .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: 460)
-                Text("Beta version 1.348").font(.caption).foregroundStyle(.tertiary)
+                Text("Beta version 1.349").font(.caption).foregroundStyle(.tertiary)
             }
             Spacer()
         }.padding(40).frame(maxWidth: .infinity, maxHeight: .infinity).navigationTitle("About")
@@ -305,7 +305,7 @@ struct GeneralSettingsView: View {
         }.formStyle(.grouped).navigationTitle("General")
     }
     private func exportSettings() {
-        let panel = NSSavePanel(); panel.allowedContentTypes = [.json]; panel.nameFieldStringValue = "Camera-Zapper-Settings-1.348.json"; panel.prompt = "Export Settings"
+        let panel = NSSavePanel(); panel.allowedContentTypes = [.json]; panel.nameFieldStringValue = "Camera-Zapper-Settings-1.349.json"; panel.prompt = "Export Settings"
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do { try store.exportSettings(to: url); settingsTransferStatus = "Settings exported successfully." }
         catch { settingsTransferStatus = "Failed to export settings: \(error.localizedDescription)" }
@@ -508,11 +508,16 @@ struct ServiceEditorRow: View {
                             .font(.caption).foregroundStyle(.secondary)
                     }
                     if store.configuration.services[index].kind == .flickr {
-                        HStack {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
                             Label("Flickr authorization", systemImage: "person.badge.key.fill").font(.headline)
                             Spacer()
-                            Button("Enter API Key / Reauthorize…", systemImage: "key") { showFlickrSetup = true }
-                            Button("Test Authorization", systemImage: "checkmark.circle") { store.testService(serviceID) }
+                            Button("Reconnect…", systemImage: "key") { showFlickrSetup = true }
+                            Button("Test Live Login", systemImage: "checkmark.circle") { store.testFlickrAuthorization(serviceID: serviceID) }
+                            Button("Disconnect", systemImage: "person.crop.circle.badge.minus", role: .destructive) { store.disconnectFlickr(serviceID: serviceID) }
+                            }
+                            Text(store.flickrAccountName.map { "Connected as \($0). The test calls Flickr directly; a saved local flag alone is not treated as proof." } ?? "Use Test Live Login to validate the saved Keychain credentials directly with Flickr.")
+                                .font(.caption).foregroundStyle(.secondary)
                         }
                     }
                     if store.configuration.services[index].kind == .youtube {
@@ -599,8 +604,13 @@ private struct FlickrSetupSheet: View {
                 Link("Flickr App Garden", destination: URL(string: "https://www.flickr.com/services/apps/create/")!)
                 Spacer()
                 Button("Cancel", role: .cancel) { dismiss() }
-                Button("Authorize Flickr") { store.configureFlickr(key: apiKey, secret: apiSecret, serviceID: serviceID); dismiss() }
+                Button("Authorize Flickr") { store.configureFlickr(key: apiKey, secret: apiSecret, serviceID: serviceID) }
                     .buttonStyle(.borderedProminent).disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || apiSecret.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            if let operation = store.serviceOperations[serviceID] {
+                Label(operation, systemImage: operation.hasPrefix("Operational") ? "checkmark.circle.fill" : operation.localizedCaseInsensitiveContains("failed") ? "exclamationmark.triangle.fill" : "arrow.triangle.2.circlepath")
+                    .font(.caption).foregroundStyle(operation.hasPrefix("Operational") ? .green : operation.localizedCaseInsensitiveContains("failed") ? .orange : .secondary)
+                    .textSelection(.enabled)
             }
         }.padding(24).frame(width: 590)
     }

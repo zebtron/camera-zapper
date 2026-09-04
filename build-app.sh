@@ -29,8 +29,8 @@ cat > "$APP_DIR/Contents/Info.plist" <<'PLIST'
 <key>CFBundleName</key><string>Zebtron Camera zapper</string>
 <key>CFBundleDisplayName</key><string>Zebtron Camera zapper - automated backup</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>1.348</string>
-<key>CFBundleVersion</key><string>1348</string>
+<key>CFBundleShortVersionString</key><string>1.349</string>
+<key>CFBundleVersion</key><string>1349</string>
 <key>CFBundleIconFile</key><string>CameraZapper.icns</string>
 <key>LSMinimumSystemVersion</key><string>14.0</string>
 <key>LSApplicationCategoryType</key><string>public.app-category.photography</string>
@@ -50,8 +50,8 @@ codesign --verify --deep --strict "$APP_DIR"
 
 mkdir -p "$DIST_DIR"
 ditto "$APP_DIR" "$DIST_DIR/$APP_NAME"
-ditto -c -k --sequesterRsrc --keepParent "$APP_DIR" "$DIST_DIR/Zebtron-Camera-Zapper-1.348-App.zip"
-hdiutil create -volname "Zebtron Camera Zapper 1.348" -srcfolder "$APP_DIR" -ov -format UDZO "$DIST_DIR/Zebtron-Camera-Zapper-1.348.dmg" >/dev/null
+ditto -c -k --sequesterRsrc --keepParent "$APP_DIR" "$DIST_DIR/Zebtron-Camera-Zapper-1.349-App.zip"
+hdiutil create -volname "Zebtron Camera Zapper 1.349" -srcfolder "$APP_DIR" -ov -format UDZO "$DIST_DIR/Zebtron-Camera-Zapper-1.349.dmg" >/dev/null
 echo "$DIST_DIR/$APP_NAME"
-echo "$DIST_DIR/Zebtron-Camera-Zapper-1.348-App.zip"
-echo "$DIST_DIR/Zebtron-Camera-Zapper-1.348.dmg"
+echo "$DIST_DIR/Zebtron-Camera-Zapper-1.349-App.zip"
+echo "$DIST_DIR/Zebtron-Camera-Zapper-1.349.dmg"

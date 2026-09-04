@@ -1,6 +1,13 @@
 import AppKit
 import Foundation
 
+enum FlickrUploadPolicy {
+    static func sizeLimit(for kind: MediaKind) -> Int64 { kind == .video ? 990_000_000 : 195_000_000 }
+    static func shouldBlockForSkippedOversize(serviceIsRequired: Bool, mediaIsAccepted: Bool) -> Bool {
+        serviceIsRequired && mediaIsAccepted
+    }
+}
+
 actor ServiceReprocessor {
     private let database: CameraZapperDatabase
     private let machineID: UUID
@@ -118,7 +125,7 @@ actor ServiceReprocessor {
             let kind = MediaClassifier.kind(for: url) ?? .other
             // Flickr documents 1 GB/video and 200 MB/photo. Leave room for the
             // multipart request envelope so nginx never receives an oversized body.
-            let limit: Int64 = kind == .video ? 990_000_000 : 195_000_000
+            let limit = FlickrUploadPolicy.sizeLimit(for: kind)
             if source.byteSize > limit {
                 let reason = "Flickr skipped \(source.filename) — \(ByteCountFormatter.string(fromByteCount: source.byteSize, countStyle: .file)) exceeds Flickr's \(kind == .video ? "1 GB video" : "200 MB photo") limit"
                 unsupported.append(source.filename)
@@ -154,10 +161,11 @@ actor ServiceReprocessor {
             try database.insertReceipt(derivedReceipt(from: source, service: service, path: productURL, hash: source.contentSHA256, artifact: "flickr"))
             completed += 1
         }
-        if !unsupported.isEmpty {
+        if !unsupported.isEmpty && FlickrUploadPolicy.shouldBlockForSkippedOversize(serviceIsRequired: service.isRequiredForDeletion, mediaIsAccepted: true) {
             throw ServiceReprocessError.providerLimit("Flickr processed eligible files but could not back up \(unsupported.count) oversized item\(unsupported.count == 1 ? "" : "s"): \(unsupported.joined(separator: ", ")). Disable Video for Flickr or make Flickr optional before deleting those originals; YouTube and storage receipts remain independent.")
         }
-        await progress(supported.count, supported.count, "Flickr complete · \(uploaded) uploaded · \(alreadyPresent) already there · \(previouslyCompleted) previously processed")
+        let skipped = unsupported.isEmpty ? "" : " · \(unsupported.count) oversized skipped"
+        await progress(supported.count, supported.count, "Flickr complete · \(uploaded) uploaded · \(alreadyPresent) already there · \(previouslyCompleted) previously processed\(skipped)")
     }
 
     private func uploadToYouTube(_ sources: [TransferReceipt], service: ServiceConfiguration, progress: @escaping @Sendable (Int, Int, String) async -> Void) async throws {

@@ -3,9 +3,12 @@ import CryptoKit
 import Darwin
 import Foundation
 import Security
+import UniformTypeIdentifiers
 
 private struct FlickrCredentials: Codable, Sendable { let key: String; let secret: String }
 private struct FlickrAccess: Codable, Sendable { let token: String; let secret: String; let username: String?; let userID: String? }
+private struct FlickrStoredState: Codable, Sendable { let credentials: FlickrCredentials; let access: FlickrAccess }
+struct FlickrAuthorizationStatus: Sendable { let username: String; let userID: String? }
 
 actor FlickrClient {
     private let keychain = FlickrKeychain()
@@ -13,7 +16,7 @@ actor FlickrClient {
     private var access: FlickrAccess?
 
     init() { }
-    var isAuthorized: Bool { (credentials != nil && access != nil) || UserDefaults.standard.bool(forKey: "authorized.flickr") }
+    var isAuthorized: Bool { credentials != nil && access != nil }
 
     func uploadPrivate(file: URL, filename: String) async throws -> FlickrUploadResult {
         loadStoredStateIfNeeded()
@@ -59,16 +62,18 @@ actor FlickrClient {
             let duplicateURL = xmlAttribute("duplicate_photo_id", in: text).map { "https://www.flickr.com/photos/\(access.userID ?? "me")/\($0)" }
             return .alreadyPresent(duplicateURL)
         }
-        throw FlickrError.api(xmlAttribute("msg", in: text) ?? text)
+        let message = xmlAttribute("msg", in: text) ?? text
+        if ["96", "97", "98", "99", "100"].contains(xmlAttribute("code", in: text) ?? "") {
+            throw FlickrError.authorizationExpired(message)
+        }
+        throw FlickrError.api(message)
     }
 
     func configureAndAuthorize(key: String, secret: String) async throws {
         let trimmedKey = key.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedSecret = secret.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedKey.isEmpty, !trimmedSecret.isEmpty else { throw FlickrError.invalidCredentials }
-        let credentials = FlickrCredentials(key: trimmedKey, secret: trimmedSecret)
-        try keychain.save(JSONEncoder().encode(credentials), account: "flickr.credentials")
-        self.credentials = credentials
+        let candidateCredentials = FlickrCredentials(key: trimmedKey, secret: trimmedSecret)
 
         let callback = try FlickrOAuthCallback.start()
         let requestURL = URL(string: "https://www.flickr.com/services/oauth/request_token")!
@@ -86,9 +91,40 @@ actor FlickrClient {
         let accessResponse = try await signedGET(accessURL, parameters: accessParameters, consumerSecret: trimmedSecret, tokenSecret: requestSecret)
         let values = formValues(accessResponse)
         guard let token = values["oauth_token"], let tokenSecret = values["oauth_token_secret"] else { throw FlickrError.api(accessResponse) }
-        let access = FlickrAccess(token: token, secret: tokenSecret, username: values["username"], userID: values["user_nsid"])
-        try keychain.save(JSONEncoder().encode(access), account: "flickr.access")
-        self.access = access
+        let candidateAccess = FlickrAccess(token: token, secret: tokenSecret, username: values["username"], userID: values["user_nsid"])
+        // Commit the consumer credentials and access token together only after
+        // the complete OAuth exchange succeeds. A cancelled reauthorization
+        // can therefore never pair a new API secret with an old access token.
+        try keychain.save(JSONEncoder().encode(FlickrStoredState(credentials: candidateCredentials, access: candidateAccess)), account: "flickr.state.v2")
+        credentials = candidateCredentials
+        access = candidateAccess
+    }
+
+    func testAuthorization() async throws -> FlickrAuthorizationStatus {
+        loadStoredStateIfNeeded()
+        guard let credentials, let access else { throw FlickrError.notAuthorized }
+        let endpoint = URL(string: "https://www.flickr.com/services/rest")!
+        var parameters = oauthParameters(key: credentials.key, token: access.token)
+        parameters["method"] = "flickr.test.login"
+        parameters["format"] = "json"
+        parameters["nojsoncallback"] = "1"
+        let text = try await signedGET(endpoint, parameters: parameters, consumerSecret: credentials.secret, tokenSecret: access.secret)
+        guard let data = text.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw FlickrError.api(text) }
+        if json["stat"] as? String != "ok" {
+            let problem = json["message"] as? String ?? text
+            throw FlickrError.authorizationExpired(problem)
+        }
+        let user = json["user"] as? [String: Any]
+        let username = ((user?["username"] as? [String: Any])?["_content"] as? String)
+            ?? access.username ?? "Flickr account"
+        return FlickrAuthorizationStatus(username: username, userID: user?["id"] as? String ?? access.userID)
+    }
+
+    func disconnect() throws {
+        try keychain.remove(["flickr.state.v2", "flickr.credentials", "flickr.access"])
+        credentials = nil
+        access = nil
     }
 
     private func signedGET(_ url: URL, parameters: [String: String], consumerSecret: String, tokenSecret: String?) async throws -> String {
@@ -115,10 +151,22 @@ actor FlickrClient {
     private func oauthEncode(_ value: String) -> String { value.addingPercentEncoding(withAllowedCharacters: CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~")) ?? value }
     private func formValues(_ text: String) -> [String: String] { Dictionary(uniqueKeysWithValues: text.split(separator: "&").compactMap { pair in let bits = pair.split(separator: "=", maxSplits: 1).map(String.init); return bits.count == 2 ? (bits[0].removingPercentEncoding ?? bits[0], bits[1].removingPercentEncoding ?? bits[1]) : nil }) }
     private func loadStoredStateIfNeeded() {
+        if credentials == nil || access == nil,
+           let data = keychain.load("flickr.state.v2"),
+           let state = try? JSONDecoder().decode(FlickrStoredState.self, from: data) {
+            credentials = state.credentials
+            access = state.access
+            return
+        }
         if credentials == nil { credentials = keychain.load("flickr.credentials").flatMap { try? JSONDecoder().decode(FlickrCredentials.self, from: $0) } }
         if access == nil { access = keychain.load("flickr.access").flatMap { try? JSONDecoder().decode(FlickrAccess.self, from: $0) } }
+        if let credentials, let access {
+            try? keychain.save(JSONEncoder().encode(FlickrStoredState(credentials: credentials, access: access)), account: "flickr.state.v2")
+        }
     }
-    private func mimeType(for url: URL) -> String { switch url.pathExtension.lowercased() { case "jpg", "jpeg": "image/jpeg"; case "png": "image/png"; case "gif": "image/gif"; case "tif", "tiff": "image/tiff"; case "heic": "image/heic"; case "mov": "video/quicktime"; case "m4v": "video/x-m4v"; default: "video/mp4" } }
+    private func mimeType(for url: URL) -> String {
+        UTType(filenameExtension: url.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
+    }
     private func xmlValue(_ element: String, in text: String) -> String? { guard let start = text.range(of: "<\(element)>"), let end = text.range(of: "</\(element)>", range: start.upperBound..<text.endIndex) else { return nil }; return String(text[start.upperBound..<end.lowerBound]) }
     private func xmlAttribute(_ attribute: String, in text: String) -> String? { let marker = "\(attribute)=\""; guard let start = text.range(of: marker), let end = text[start.upperBound...].firstIndex(of: "\"") else { return nil }; return String(text[start.upperBound..<end]) }
 }
@@ -165,8 +213,12 @@ private struct FlickrKeychain: Sendable {
         catch { throw FlickrError.keychain }
     }
     func load(_ account: String) -> Data? { CameraZapperCredentialVault.shared.load(account) }
+    func remove(_ accounts: [String]) throws {
+        do { try CameraZapperCredentialVault.shared.remove(accounts) }
+        catch { throw FlickrError.keychain }
+    }
 }
 
-enum FlickrError: LocalizedError { case invalidCredentials, callback, keychain, notAuthorized, entityTooLarge, api(String)
-    var errorDescription: String? { switch self { case .invalidCredentials: "Enter both the Flickr API key and secret."; case .callback: "Flickr's local authorization callback failed."; case .keychain: "Flickr credentials could not be stored in Keychain."; case .notAuthorized: "Flickr is not authorized."; case .entityTooLarge: "Flickr rejected the upload because the request was too large."; case .api(let value): "Flickr: \(value)" } }
+enum FlickrError: LocalizedError { case invalidCredentials, callback, keychain, notAuthorized, authorizationExpired(String), entityTooLarge, api(String)
+    var errorDescription: String? { switch self { case .invalidCredentials: "Enter both the Flickr API key and secret."; case .callback: "Flickr's local authorization callback failed."; case .keychain: "Flickr credentials could not be stored in Keychain."; case .notAuthorized: "Flickr credentials are missing. Reconnect Flickr."; case .authorizationExpired(let value): "Flickr authorization is no longer valid: \(value). Reconnect Flickr."; case .entityTooLarge: "Flickr rejected the upload because the request was too large."; case .api(let value): "Flickr: \(value)" } }
 }

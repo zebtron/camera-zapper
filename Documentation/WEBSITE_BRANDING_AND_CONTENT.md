@@ -4,7 +4,7 @@ This is the starting document for another LLM or web developer building the Came
 
 ## Source material to read
 
-All paths below are relative to the packaged `Zebtron-Camera-Zapper-1.348` project folder:
+All paths below are relative to the packaged `Zebtron-Camera-Zapper-1.349` project folder:
 
 1. `App-Source/Documentation/USER_MANUAL.md` — authoritative behavior, workflow, integrations, troubleshooting, privacy, and deletion safety.
 2. `App-Source/Documentation/INSTALLATION.md` — installation and Android setup steps.

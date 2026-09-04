@@ -4,9 +4,11 @@ All notable changes to **Zebtron Camera Zapper** are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/);
 releases use the app's build-number versioning.
 
-## [1.348] — 2026-09-04 · Controlled beta
+## [1.349] — 2026-09-04 · Controlled beta
 
 ### Added
+- Added a live Flickr `flickr.test.login` check, connected-account display, and explicit Reconnect and Disconnect controls.
+- Added atomic Flickr credential storage so an interrupted reauthorization cannot pair a new API secret with an older access token.
 - Added one large **Sync All Locations & Delete** action for each connected device. After an interrupted or failed run it becomes **Resume Sync All Locations & Delete** and safely skips completed receipts.
 - Added live per-service workflow status showing the service currently running, current file/action, completed and queued services, item counts, and verbose timestamped activity.
 - Added an on-by-default **Show detailed activity** preference; turning it off collapses the verbose log without reducing recorded workflow detail.
@@ -18,6 +20,8 @@ releases use the app's build-number versioning.
 - Added explicit settings export/import plus automatic version-independent JSON backups in Application Support.
 
 ### Changed
+- Oversized Flickr files are logged and skipped without failing an optional Flickr service. They block deletion only when Flickr is required and that media type is selected for Flickr.
+- Flickr authorization failures now clear the stale operational flag and direct the user to reconnect instead of repeatedly accepting unusable saved state.
 - Required-service failures stop deletion with a named reason; optional failures remain visible but do not invalidate completed storage or cloud receipts.
 - Advanced partial-workflow actions remain available below the single primary action.
 - Introduced explicit **Not set up**, **Configuring**, **Operational**, and **Needs attention** service states.
@@ -73,6 +77,6 @@ First public (controlled-beta) release, open-sourced under the MIT license.
 - This build is **ad-hoc signed** — on first launch, Control-click the app and choose **Open**.
   It is not yet notarized, and cloud OAuth (Google / Flickr / YouTube) is still in review.
 
-[1.348]: https://github.com/zebtron/camera-zapper/releases/tag/v1.348
+[1.349]: https://github.com/zebtron/camera-zapper/releases/tag/v1.349
 [1.346]: https://github.com/zebtron/camera-zapper/releases/tag/v1.346
 [1.345]: https://github.com/zebtron/camera-zapper/releases/tag/v1.345

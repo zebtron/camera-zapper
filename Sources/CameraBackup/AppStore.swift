@@ -24,6 +24,7 @@ final class AppStore: ObservableObject {
     @Published var googlePhotosAuthorized = false
     @Published var googlePhotosAPIActivationURL: URL?
     @Published var flickrAuthorized = false
+    @Published var flickrAccountName: String?
     @Published var youtubeAuthorized = false
     @Published var videoProcessingStatus: String?
     @Published var draggedServiceID: UUID?
@@ -376,21 +377,68 @@ final class AppStore: ObservableObject {
     }
 
     func configureFlickr(key: String, secret: String, serviceID: UUID) {
+        flickrAuthorized = false
+        flickrAccountName = nil
+        UserDefaults.standard.set(false, forKey: "authorized.flickr")
         serviceOperations[serviceID] = "Waiting for Flickr authorization in your browser…"
         Task { [weak self] in
             do {
                 try await self?.flickr.configureAndAuthorize(key: key, secret: secret)
+                let status = try await self?.flickr.testAuthorization()
                 self?.flickrAuthorized = true
+                self?.flickrAccountName = status?.username
                 self?.markService(serviceID, state: .operational)
                 UserDefaults.standard.set(true, forKey: "authorized.flickr")
-                self?.serviceOperations.removeValue(forKey: serviceID)
-                self?.record("Flickr account authorized with write access", severity: .success)
+                self?.serviceOperations[serviceID] = "Operational · connected as \(status?.username ?? "Flickr account")"
+                self?.record("Flickr account authorized and verified with flickr.test.login", severity: .success)
             } catch {
                 self?.serviceOperations[serviceID] = "Setup failed · \(error.localizedDescription)"
                 self?.markService(serviceID, state: .needsAttention)
                 self?.record("Flickr setup failed: \(error.localizedDescription)", severity: .error)
             }
         }
+    }
+
+    func testFlickrAuthorization(serviceID: UUID) {
+        serviceOperations[serviceID] = "Testing Flickr authorization with flickr.test.login…"
+        Task { [weak self] in
+            do {
+                guard let status = try await self?.flickr.testAuthorization() else { return }
+                self?.flickrAuthorized = true
+                self?.flickrAccountName = status.username
+                self?.markService(serviceID, state: .operational)
+                UserDefaults.standard.set(true, forKey: "authorized.flickr")
+                self?.serviceOperations[serviceID] = "Operational · connected as \(status.username)"
+                self?.record("Flickr authorization verified for \(status.username)", severity: .success)
+            } catch {
+                self?.invalidateFlickrAuthorization(serviceID: serviceID, error: error)
+            }
+        }
+    }
+
+    func disconnectFlickr(serviceID: UUID) {
+        Task { [weak self] in
+            do {
+                try await self?.flickr.disconnect()
+                self?.flickrAuthorized = false
+                self?.flickrAccountName = nil
+                UserDefaults.standard.set(false, forKey: "authorized.flickr")
+                self?.markService(serviceID, state: .configuring)
+                self?.serviceOperations[serviceID] = "Disconnected · enter an API key and authorize Flickr"
+                self?.record("Flickr disconnected; stored Flickr credentials removed", severity: .info)
+            } catch {
+                self?.serviceOperations[serviceID] = "Disconnect failed · \(error.localizedDescription)"
+            }
+        }
+    }
+
+    private func invalidateFlickrAuthorization(serviceID: UUID, error: Error) {
+        flickrAuthorized = false
+        flickrAccountName = nil
+        UserDefaults.standard.set(false, forKey: "authorized.flickr")
+        markService(serviceID, state: .needsAttention)
+        serviceOperations[serviceID] = "Authorization failed · \(error.localizedDescription)"
+        record("Flickr authorization test failed: \(error.localizedDescription)", severity: .error)
     }
 
     func canReprocess(_ service: ServiceConfiguration) -> Bool {
@@ -445,6 +493,10 @@ final class AppStore: ObservableObject {
                 self?.record("\(service.name) catch-up completed", severity: .success)
             } catch {
                 if let googleError = error as? GooglePhotosError { self?.googlePhotosAPIActivationURL = googleError.activationURL }
+                if service.kind == .flickr, Self.isFlickrAuthorizationFailure(error) {
+                    self?.invalidateFlickrAuthorization(serviceID: id, error: error)
+                    return
+                }
                 self?.serviceOperations[id] = "Failed · \(error.localizedDescription)"
                 self?.record("\(service.name) catch-up failed: \(error.localizedDescription)", severity: .error)
             }
@@ -532,6 +584,9 @@ final class AppStore: ObservableObject {
                         }
                         self.serviceOperations[service.id] = "Catch-up complete"; self.appendTransferLog("Completed service: \(service.name)")
                     } catch {
+                        if service.kind == .flickr, Self.isFlickrAuthorizationFailure(error) {
+                            self.invalidateFlickrAuthorization(serviceID: service.id, error: error)
+                        }
                         self.serviceOperations[service.id] = "Failed · \(error.localizedDescription)"
                         self.appendTransferLog("Service failed: \(service.name) — \(error.localizedDescription)")
                         self.record("\(service.name) catch-up failed: \(error.localizedDescription)", severity: .error)
@@ -557,6 +612,14 @@ final class AppStore: ObservableObject {
                 self?.status = .failed; self?.appendTransferLog("Full workflow stopped: \(error.localizedDescription)")
                 self?.record("Full workflow failed: \(error.localizedDescription)", severity: .error); self?.backupTask = nil
             }
+        }
+    }
+
+    private static func isFlickrAuthorizationFailure(_ error: Error) -> Bool {
+        guard let flickrError = error as? FlickrError else { return false }
+        return switch flickrError {
+        case .notAuthorized, .authorizationExpired: true
+        default: false
         }
     }
 
@@ -782,8 +845,7 @@ final class AppStore: ObservableObject {
             configuration.services[index].setupState = youtubeAuthorized ? .operational : .configuring
             serviceOperations[id] = youtubeAuthorized ? "Operational · private YouTube uploads authorized" : "Configuring · authorize Google Photos first, then YouTube"
         case .flickr:
-            configuration.services[index].setupState = flickrAuthorized ? .operational : .configuring
-            serviceOperations[id] = flickrAuthorized ? "Operational · Flickr account authorized" : "Configuring · enter a Flickr API key and secret"
+            testFlickrAuthorization(serviceID: id)
         case .derivative:
             configuration.services[index].setupState = FileManager.default.isExecutableFile(atPath: "/usr/bin/avconvert") ? .operational : .needsAttention
         case .s3, .amazonPhotos, .iCloud:
