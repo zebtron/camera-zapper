@@ -4,6 +4,26 @@ All notable changes to **Zebtron Camera Zapper** are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/);
 releases use the app's build-number versioning.
 
+## [1.347] — 2026-08-30 · Controlled beta
+
+### Added
+- Added an accessible seven-step first-run Setup Wizard covering the local safety archive, service selection, deletion gates, per-service configuration, priority, and first-run review.
+- Added a reusable **Run Setup Again** action and a gentle **Finish setup** dashboard affordance.
+- Added a real file-destination probe that writes a temporary payload, verifies its SHA-256 after read-back, and deletes the probe.
+- Added explicit settings export/import plus automatic version-independent JSON backups in Application Support.
+
+### Changed
+- Introduced explicit **Not set up**, **Configuring**, **Operational**, and **Needs attention** service states.
+- Fresh installs now enable only the local archive. Unselected services remain neutral, never warn, and never block deletion.
+- Selecting a destination folder immediately updates the path used by validation and re-runs the destination test.
+- The dashboard no longer presents example NAS values as a failing configuration.
+- Safe deletion remains confirmation-only and is gated solely by enabled services explicitly marked required.
+- Settings exports deliberately omit Keychain credentials, OAuth tokens, passwords, and API secrets; cloud accounts must be authorized separately on another Mac.
+
+### Security / privacy
+- Cloud services remain private-only; the app has no telemetry.
+- No credentials or organization-specific paths are bundled.
+
 ## [1.346] — 2026-08-23 · Controlled beta
 
 ### Changed
@@ -46,5 +66,6 @@ First public (controlled-beta) release, open-sourced under the MIT license.
 - This build is **ad-hoc signed** — on first launch, Control-click the app and choose **Open**.
   It is not yet notarized, and cloud OAuth (Google / Flickr / YouTube) is still in review.
 
+[1.347]: https://github.com/zebtron/camera-zapper/releases/tag/v1.347
 [1.346]: https://github.com/zebtron/camera-zapper/releases/tag/v1.346
 [1.345]: https://github.com/zebtron/camera-zapper/releases/tag/v1.345

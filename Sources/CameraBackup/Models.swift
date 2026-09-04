@@ -28,6 +28,13 @@ enum ServiceKind: String, Codable, CaseIterable {
     case derivative = "Compatibility Video Copies"
 }
 
+enum ServiceSetupState: String, Codable, CaseIterable {
+    case notSetUp
+    case configuring
+    case operational
+    case needsAttention
+}
+
 struct ServiceConfiguration: Identifiable, Codable, Equatable {
     var id: UUID
     var kind: ServiceKind
@@ -42,9 +49,10 @@ struct ServiceConfiguration: Identifiable, Codable, Equatable {
     var transcodeEnabled: Bool
     var remoteLocation: String?
     var privacy: String?
+    var setupState: ServiceSetupState? = nil
 
     static let defaults: [Self] = [
-        .init(id: UUID(), kind: .localStorage, name: "Local Device Archive", isEnabled: true, priority: 0, isRequiredForDeletion: true, detail: "Verified safety copy on this Mac; retained while offline and until required destinations succeed", destination: "~/Pictures/Camera Zapper/Archive", acceptedMedia: Set(MediaKind.allCases), outputFormat: "Original", transcodeEnabled: false, remoteLocation: nil, privacy: nil),
+        .init(id: UUID(), kind: .localStorage, name: "Local Device Archive", isEnabled: true, priority: 0, isRequiredForDeletion: true, detail: "Verified safety copy on this Mac; retained while offline and until required destinations succeed", destination: "~/Pictures/Camera Zapper/Archive", acceptedMedia: Set(MediaKind.allCases), outputFormat: "Original", transcodeEnabled: false, remoteLocation: nil, privacy: nil, setupState: .operational),
         .init(id: UUID(), kind: .storage, name: "Primary NAS Archive", isEnabled: false, priority: 1, isRequiredForDeletion: false, detail: "Copy and SHA-256 verify archival files after you choose a mounted destination", destination: "/Volumes/NAS", acceptedMedia: Set(MediaKind.allCases), outputFormat: "Original", transcodeEnabled: false, remoteLocation: "smb://your-nas.local/Media", privacy: nil),
         .init(id: UUID(), kind: .youtube, name: "YouTube Video Backup", isEnabled: false, priority: 2, isRequiredForDeletion: false, detail: "Upload new videos privately to YouTube", destination: nil, acceptedMedia: [.video], outputFormat: "MP4", transcodeEnabled: true, remoteLocation: "Camera Zapper", privacy: "Private"),
         .init(id: UUID(), kind: .googlePhotos, name: "Google Photos", isEnabled: false, priority: 3, isRequiredForDeletion: false, detail: "Upload verified photos and videos to Google Photos", destination: nil, acceptedMedia: [.photo, .raw, .video], outputFormat: "Original", transcodeEnabled: false, remoteLocation: "Camera Zapper", privacy: "Private"),
@@ -159,6 +167,20 @@ struct AppConfiguration: Codable, Equatable {
     var transcodeIncompatibleVideos: Bool? = false
     var transcodeDestination: String? = "~/Movies/Camera Zapper/Compatibility Videos"
     var transcodePreset: String? = "PresetHEVCHighestQuality"
+}
+
+struct SettingsExport: Codable {
+    let schemaVersion: Int
+    let appVersion: String
+    let exportedAt: Date
+    let configuration: AppConfiguration
+
+    init(configuration: AppConfiguration) {
+        schemaVersion = 1
+        appVersion = "1.347"
+        exportedAt = .now
+        self.configuration = configuration
+    }
 }
 
 enum CacheSyncStatus: String {

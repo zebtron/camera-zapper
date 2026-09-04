@@ -12,7 +12,7 @@ struct DashboardView: View {
                     VStack(alignment: .leading) {
                         HStack(spacing: 10) {
                             Text("Zebtron Camera zapper").font(.largeTitle.bold())
-                            Text("BETA 1.346").font(.caption.bold()).foregroundStyle(.green).padding(.horizontal, 7).padding(.vertical, 4).background(.green.opacity(0.12), in: Capsule())
+                            Text("BETA 1.347").font(.caption.bold()).foregroundStyle(.green).padding(.horizontal, 7).padding(.vertical, 4).background(.green.opacity(0.12), in: Capsule())
                         }
                         Text("move · sync · delete").font(.headline).foregroundStyle(.secondary)
                         Text(statusMessage).font(.caption).foregroundStyle(.secondary)
@@ -23,7 +23,7 @@ struct DashboardView: View {
 
                 if store.status != .idle { ProgressView(value: store.progress) }
 
-                if store.needsInitialSetup || !store.configurationWarnings.isEmpty {
+                if store.setupIncomplete {
                     InitialSetupCard(onSetUp: onSetUpDestinations)
                 }
 
@@ -77,19 +77,19 @@ struct InitialSetupCard: View {
     let onSetUp: () -> Void
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
-            Image(systemName: "externaldrive.badge.exclamationmark").font(.title2).foregroundStyle(.orange)
+            Image(systemName: "wand.and.stars").font(.title2).foregroundStyle(.blue)
             VStack(alignment: .leading, spacing: 5) {
-                Text("Set up your backup destinations").font(.headline)
-                Text("Review the local archive first, then enable only the NAS and services you intend to use. Source deletion stays confirmation-only and is blocked until every required destination verifies successfully.")
+                Text("Finish setup").font(.headline)
+                Text("Choose only the destinations you want. Services you have not set up stay quiet and never block deletion.")
                     .font(.caption).foregroundStyle(.secondary)
                 ForEach(store.configurationWarnings, id: \.self) { Text("• \($0)").font(.caption).foregroundStyle(.orange) }
             }
             Spacer()
-            Button("Open Settings", action: onSetUp).buttonStyle(.borderedProminent)
+            Button("Run Setup", action: { store.runSetupAgain() }).buttonStyle(.borderedProminent)
         }
         .padding(14)
-        .background(.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(.orange.opacity(0.5)))
+        .background(.blue.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(.blue.opacity(0.35)))
         .accessibilityElement(children: .combine)
     }
 }
@@ -111,15 +111,16 @@ struct CoordinationStatusCard: View {
 struct NASStatusCard: View {
     @EnvironmentObject private var store: AppStore
     var body: some View {
+        let nas = store.configuration.services.first { $0.kind == .storage && $0.isEnabled }
         HStack(spacing: 14) {
-            Image(systemName: store.nasIsConnected ? "externaldrive.connected.to.line.below.fill" : "network.slash")
-                .font(.title2).foregroundStyle(store.nasIsConnected ? .green : .orange)
+            Image(systemName: nas == nil ? "externaldrive.badge.plus" : store.nasIsConnected ? "externaldrive.connected.to.line.below.fill" : "network.slash")
+                .font(.title2).foregroundStyle(nas == nil ? Color.secondary : store.nasIsConnected ? Color.green : Color.orange)
             VStack(alignment: .leading, spacing: 3) {
-                Text("Primary NAS · \(store.configuration.nasHost)").font(.headline)
-                Text("\(store.nasConnectionStatus) · \(store.configuration.nasMountPath)").font(.caption).foregroundStyle(.secondary)
+                Text(nas == nil ? "NAS not set up" : "Primary NAS Archive").font(.headline)
+                Text(nas == nil ? "Optional · choose it in Setup when you want a mounted NAS destination" : store.nasConnectionStatus).font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
-            Button("Test Connection") { store.mockTestNASConnection() }
+            if nas != nil { Button("Test Connection") { store.mockTestNASConnection() } }
         }.padding(14).background(.background, in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).stroke(.separator.opacity(0.5)))
     }
 }

@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import CryptoKit
 
 @MainActor
 final class AppStore: ObservableObject {
@@ -38,6 +39,7 @@ final class AppStore: ObservableObject {
     let adbAvailable: Bool
 
     private let configurationURL: URL
+    private let settingsBackupDirectory: URL
     private let deviceRegistryURL: URL
     private let engine: BackupEngine?
     private let reprocessor: ServiceReprocessor?
@@ -52,6 +54,7 @@ final class AppStore: ObservableObject {
             .appending(path: "Zebtron Camera Zapper", directoryHint: .isDirectory)
         try? FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
         configurationURL = support.appending(path: "configuration.json")
+        settingsBackupDirectory = support.appending(path: "Settings Backups", directoryHint: .isDirectory)
         deviceRegistryURL = support.appending(path: "device-registry.json")
         var loadedConfiguration = (try? Data(contentsOf: configurationURL)).flatMap { try? JSONDecoder().decode(AppConfiguration.self, from: $0) } ?? AppConfiguration()
         if !loadedConfiguration.services.contains(where: { $0.kind == .googlePhotos }) {
@@ -67,6 +70,19 @@ final class AppStore: ObservableObject {
             // Video processing is optional transformation, never a durable
             // destination that may authorize or block source deletion.
             loadedConfiguration.services[legacyIndex].isRequiredForDeletion = false
+        }
+        for index in loadedConfiguration.services.indices {
+            if loadedConfiguration.services[index].kind == .localStorage {
+                loadedConfiguration.services[index].setupState = .operational
+            } else if !loadedConfiguration.services[index].isEnabled {
+                loadedConfiguration.services[index].isRequiredForDeletion = false
+                loadedConfiguration.services[index].setupState = .notSetUp
+            } else if loadedConfiguration.services[index].setupState == nil {
+                // Existing enabled services are migrated without inventing an
+                // error. Validation below promotes them to Operational or
+                // Needs attention using their saved, real configuration.
+                loadedConfiguration.services[index].setupState = .configuring
+            }
         }
         for index in loadedConfiguration.services.indices where [.googlePhotos, .flickr, .youtube].contains(loadedConfiguration.services[index].kind) {
             // Cloud publishing is intentionally not a Camera Zapper feature.
@@ -114,6 +130,9 @@ final class AppStore: ObservableObject {
         // signatures change between builds and would otherwise trigger a prompt
         // for every stored OAuth record before the user starts an operation.
         validateConfiguration()
+        if configuration.services.contains(where: { $0.isEnabled && $0.isRequiredForDeletion && !serviceIsOperational($0) }) {
+            needsInitialSetup = true
+        }
         if adb == nil {
             events.insert(.init(id: UUID(), timestamp: .now, severity: .warning, message: "Android support needs ADB. Install Android Platform Tools with Homebrew (`brew install android-platform-tools`) or Android Studio, then relaunch Camera Zapper."), at: 0)
         }
@@ -122,10 +141,76 @@ final class AppStore: ObservableObject {
 
     var activeDevice: CameraDevice? { devices.first(where: { $0.isConnected }) }
     var enabledServices: [ServiceConfiguration] { configuration.services.filter(\.isEnabled).sorted { $0.priority < $1.priority } }
+    var setupIncomplete: Bool {
+        !UserDefaults.standard.bool(forKey: "completedInitialDestinationSetup") || configuration.services.contains {
+            $0.isEnabled && $0.isRequiredForDeletion && !serviceIsOperational($0)
+        }
+    }
+
+    func runSetupAgain() { needsInitialSetup = true }
+
+    func skipSetupForNow() {
+        needsInitialSetup = false
+        record("Setup wizard skipped; Finish setup remains available", severity: .info)
+    }
+
+    var settingsBackupFolder: URL { settingsBackupDirectory }
+
+    func exportSettings(to url: URL) throws {
+        let data = try JSONEncoder.pretty.encode(SettingsExport(configuration: configuration))
+        try data.write(to: url, options: .atomic)
+        record("Settings exported without passwords, API secrets, or OAuth tokens", severity: .success)
+    }
+
+    func importSettings(from url: URL) throws {
+        let accessing = url.startAccessingSecurityScopedResource()
+        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+        let data = try Data(contentsOf: url)
+        let decoded: AppConfiguration
+        if let envelope = try? JSONDecoder().decode(SettingsExport.self, from: data) {
+            decoded = envelope.configuration
+        } else {
+            decoded = try JSONDecoder().decode(AppConfiguration.self, from: data)
+        }
+        try persistPreImportSettingsBackup(configuration)
+        configuration = decoded
+        for index in configuration.services.indices {
+            let service = configuration.services[index]
+            if service.kind == .localStorage {
+                configuration.services[index].isEnabled = true
+                configuration.services[index].isRequiredForDeletion = true
+                configuration.services[index].setupState = .operational
+            } else if !service.isEnabled {
+                configuration.services[index].isRequiredForDeletion = false
+                configuration.services[index].setupState = .notSetUp
+            } else if [.googlePhotos, .youtube, .flickr].contains(service.kind) {
+                configuration.services[index].setupState = .configuring
+            }
+        }
+        googlePhotosAuthorized = false
+        youtubeAuthorized = false
+        flickrAuthorized = false
+        UserDefaults.standard.set(false, forKey: "authorized.googlePhotos")
+        UserDefaults.standard.set(false, forKey: "authorized.youtube")
+        UserDefaults.standard.set(false, forKey: "authorized.flickr")
+        UserDefaults.standard.set(false, forKey: "completedInitialDestinationSetup")
+        needsInitialSetup = true
+        validateConfiguration()
+        persistSettingsBackup(configuration)
+        record("Settings imported; cloud services need authorization on this Mac", severity: .success)
+    }
 
     func setServiceEnabled(_ id: UUID, _ enabled: Bool) {
         guard let index = configuration.services.firstIndex(where: { $0.id == id }) else { return }
         configuration.services[index].isEnabled = enabled
+        if enabled {
+            configuration.services[index].setupState = .configuring
+        } else {
+            configuration.services[index].isRequiredForDeletion = false
+            configuration.services[index].setupState = .notSetUp
+            serviceOperations.removeValue(forKey: id)
+        }
+        validateConfiguration()
     }
 
     func moveServices(from source: IndexSet, to destination: Int) {
@@ -192,6 +277,18 @@ final class AppStore: ObservableObject {
 
     func serviceCapability(_ service: ServiceConfiguration) -> String {
         if let operation = serviceOperations[service.id] { return operation }
+        if service.kind != .localStorage && (!service.isEnabled || service.setupState == .notSetUp) { return "Not set up" }
+        if service.setupState == .configuring { return "Configuring · complete setup and test" }
+        if service.setupState == .needsAttention {
+            return switch service.kind {
+            case .storage: "Needs attention · volume not mounted or folder not writable"
+            case .neofinder: "Needs attention · NeoFinder is not installed"
+            case .googlePhotos: "Needs attention · Google authorization must be repaired"
+            case .youtube: "Needs attention · private YouTube authorization must be repaired"
+            case .flickr: "Needs attention · Flickr authorization must be repaired"
+            default: "Needs attention · open configuration for the next step"
+            }
+        }
         switch service.kind {
         case .localStorage: return "Operational · verified local archive"
         case .storage: return FileManager.default.isWritableFile(atPath: NSString(string: service.destination ?? "").expandingTildeInPath) ? "Operational · catch-up available" : "Unavailable · destination not mounted/writable"
@@ -206,7 +303,8 @@ final class AppStore: ObservableObject {
     }
 
     func serviceIsOperational(_ service: ServiceConfiguration) -> Bool {
-        switch service.kind {
+        if service.kind != .localStorage && (!service.isEnabled || service.setupState == .notSetUp) { return false }
+        return switch service.kind {
         case .localStorage, .photos: true
         case .storage: FileManager.default.isWritableFile(atPath: NSString(string: service.destination ?? "").expandingTildeInPath)
         case .googlePhotos: googlePhotosAuthorized
@@ -224,11 +322,13 @@ final class AppStore: ObservableObject {
             do {
                 try await self?.googlePhotos.authorizeYouTube()
                 self?.youtubeAuthorized = true
+                self?.markService(serviceID, state: .operational)
                 UserDefaults.standard.set(true, forKey: "authorized.youtube")
                 self?.serviceOperations.removeValue(forKey: serviceID)
                 self?.record("YouTube authorized for private video uploads", severity: .success)
             } catch {
                 self?.serviceOperations[serviceID] = "Setup failed · \(error.localizedDescription)"
+                self?.markService(serviceID, state: .needsAttention)
                 self?.record("YouTube setup failed: \(error.localizedDescription)", severity: .error)
             }
         }
@@ -240,11 +340,13 @@ final class AppStore: ObservableObject {
             do {
                 try await self?.flickr.configureAndAuthorize(key: key, secret: secret)
                 self?.flickrAuthorized = true
+                self?.markService(serviceID, state: .operational)
                 UserDefaults.standard.set(true, forKey: "authorized.flickr")
                 self?.serviceOperations.removeValue(forKey: serviceID)
                 self?.record("Flickr account authorized with write access", severity: .success)
             } catch {
                 self?.serviceOperations[serviceID] = "Setup failed · \(error.localizedDescription)"
+                self?.markService(serviceID, state: .needsAttention)
                 self?.record("Flickr setup failed: \(error.localizedDescription)", severity: .error)
             }
         }
@@ -273,11 +375,13 @@ final class AppStore: ObservableObject {
                 self?.serviceOperations[serviceID] = "Waiting for Google authorization in your browser…"
                 try await self?.googlePhotos.importAndAuthorize(data: data)
                 self?.googlePhotosAuthorized = true
+                self?.markService(serviceID, state: .operational)
                 UserDefaults.standard.set(true, forKey: "authorized.googlePhotos")
                 self?.serviceOperations.removeValue(forKey: serviceID)
                 self?.record("Google Photos account authorized", severity: .success)
             } catch {
                 self?.serviceOperations[serviceID] = "Setup failed · \(error.localizedDescription)"
+                self?.markService(serviceID, state: .needsAttention)
                 self?.record("Google Photos setup failed: \(error.localizedDescription)", severity: .error)
             }
         }
@@ -574,18 +678,105 @@ final class AppStore: ObservableObject {
 
     func mockTestNASConnection() {
         nasConnectionStatus = "Checking…"
-        record("Testing NAS connection to \(configuration.nasHost)/\(configuration.nasShare)")
+        let storageIndex = configuration.services.firstIndex { $0.kind == .storage && $0.isEnabled }
+        let path = storageIndex.flatMap { configuration.services[$0].destination } ?? configuration.nasMountPath
+        record("Testing the selected NAS destination")
         Task {
             try? await Task.sleep(for: .milliseconds(700))
-            nasIsConnected = FileManager.default.isWritableFile(atPath: configuration.nasMountPath)
-            nasConnectionStatus = nasIsConnected ? "Connected and writable" : "Unavailable — offline cache will be used"
+            let result = verifyWritableDestination(path)
+            nasIsConnected = result == nil
+            nasConnectionStatus = result == nil ? "Connected, writable, and verified" : (result ?? "Needs attention")
+            if let storageIndex {
+                configuration.services[storageIndex].setupState = nasIsConnected ? .operational : .needsAttention
+            }
             record(nasConnectionStatus, severity: nasIsConnected ? .success : .warning)
+        }
+    }
+
+    func markService(_ id: UUID, state: ServiceSetupState) {
+        guard let index = configuration.services.firstIndex(where: { $0.id == id }) else { return }
+        configuration.services[index].setupState = state
+    }
+
+    func updateServiceDestination(_ id: UUID, path: String) {
+        guard let index = configuration.services.firstIndex(where: { $0.id == id }) else { return }
+        configuration.services[index].destination = path
+        configuration.services[index].setupState = .configuring
+        if configuration.services[index].kind == .storage {
+            configuration.nasMountPath = path
+        }
+        validateConfiguration()
+    }
+
+    func testService(_ id: UUID) {
+        guard let index = configuration.services.firstIndex(where: { $0.id == id }) else { return }
+        configuration.services[index].setupState = .configuring
+        let service = configuration.services[index]
+        switch service.kind {
+        case .localStorage, .storage:
+            validateConfiguration()
+        case .photos:
+            configuration.services[index].setupState = .operational
+            serviceOperations[id] = "Operational · Photos permission requested when first used"
+        case .neofinder:
+            let found = FileManager.default.fileExists(atPath: "/Applications/NeoFinder.app")
+            configuration.services[index].setupState = found ? .operational : .needsAttention
+            serviceOperations[id] = found ? "Operational · NeoFinder detected" : "Needs attention · install NeoFinder in Applications"
+        case .googlePhotos:
+            configuration.services[index].setupState = googlePhotosAuthorized ? .operational : .configuring
+            serviceOperations[id] = googlePhotosAuthorized ? "Operational · Google account authorized" : "Configuring · choose the Google OAuth JSON"
+        case .youtube:
+            configuration.services[index].setupState = youtubeAuthorized ? .operational : .configuring
+            serviceOperations[id] = youtubeAuthorized ? "Operational · private YouTube uploads authorized" : "Configuring · authorize Google Photos first, then YouTube"
+        case .flickr:
+            configuration.services[index].setupState = flickrAuthorized ? .operational : .configuring
+            serviceOperations[id] = flickrAuthorized ? "Operational · Flickr account authorized" : "Configuring · enter a Flickr API key and secret"
+        case .derivative:
+            configuration.services[index].setupState = FileManager.default.isExecutableFile(atPath: "/usr/bin/avconvert") ? .operational : .needsAttention
+        case .s3, .amazonPhotos, .iCloud:
+            configuration.services[index].setupState = .needsAttention
+            serviceOperations[id] = "Needs attention · this adapter is not available in the controlled beta"
+        }
+    }
+
+    /// Returns nil only after a write → SHA-256 read-back → delete probe.
+    func verifyWritableDestination(_ text: String) -> String? {
+        let path = NSString(string: text).expandingTildeInPath
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory), isDirectory.boolValue else {
+            return "Volume not mounted — connect it or choose another folder"
+        }
+        guard FileManager.default.isWritableFile(atPath: path) else {
+            return "Folder not writable — choose another folder"
+        }
+        let probe = URL(fileURLWithPath: path).appending(path: ".camera-zapper-write-test-\(UUID().uuidString)")
+        do {
+            let payload = Data("Camera Zapper destination verification".utf8)
+            try payload.write(to: probe, options: .atomic)
+            let expected = SHA256.hash(data: payload).map { String(format: "%02x", $0) }.joined()
+            let readBack = try FileHasher.sha256(url: probe)
+            guard expected == readBack else { throw EngineError.hashMismatch(probe.lastPathComponent) }
+            try FileManager.default.removeItem(at: probe)
+            return nil
+        } catch {
+            try? FileManager.default.removeItem(at: probe)
+            return "Verification test failed — \(error.localizedDescription)"
         }
     }
 
     func completeInitialSetup() {
         validateConfiguration()
-        guard configurationWarnings.isEmpty else { return }
+        let unverifiedRequired = configuration.services.filter {
+            $0.isEnabled && $0.isRequiredForDeletion && !serviceIsOperational($0)
+        }
+        guard configurationWarnings.isEmpty, unverifiedRequired.isEmpty else {
+            for service in unverifiedRequired {
+                if !configurationWarnings.contains(where: { $0.contains(service.name) }) {
+                    configurationWarnings.append("\(service.name) must verify before setup can finish.")
+                }
+            }
+            return
+        }
         UserDefaults.standard.set(true, forKey: "completedInitialDestinationSetup")
         needsInitialSetup = false
         record("Initial destination setup completed", severity: .success)
@@ -598,23 +789,25 @@ final class AppStore: ObservableObject {
             warnings.append("Enable and configure at least one local or mounted storage destination.")
         }
         for service in fileServices {
+            guard let index = configuration.services.firstIndex(where: { $0.id == service.id }) else { continue }
             guard let text = service.destination, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 warnings.append("\(service.name) needs a destination folder.")
+                configuration.services[index].setupState = .needsAttention
                 continue
             }
             let path = NSString(string: text).expandingTildeInPath
             if service.kind == .localStorage && !FileManager.default.fileExists(atPath: path) {
                 do { try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true) }
-                catch { warnings.append("\(service.name) could not create \(path).") }
+                catch { warnings.append("\(service.name) could not create its destination folder.") }
             }
-            if FileManager.default.fileExists(atPath: path) && !FileManager.default.isWritableFile(atPath: path) {
-                warnings.append("\(service.name) is not writable: \(path)")
-            } else if service.kind == .storage && !FileManager.default.fileExists(atPath: path) {
-                warnings.append("\(service.name) is enabled but its mounted volume is unavailable: \(path)")
+            if let problem = verifyWritableDestination(text) {
+                configuration.services[index].setupState = .needsAttention
+                warnings.append("\(service.name): \(problem)")
+            } else {
+                configuration.services[index].setupState = .operational
             }
         }
         configurationWarnings = warnings
-        for warning in warnings { record("Configuration warning: \(warning)", severity: .warning) }
     }
 
     private func scheduleSave() {
@@ -625,7 +818,31 @@ final class AppStore: ObservableObject {
             try? await Task.sleep(for: .milliseconds(250))
             guard !Task.isCancelled, let data = try? JSONEncoder.pretty.encode(value) else { return }
             try? data.write(to: url, options: .atomic)
+            self.persistSettingsBackup(value)
         }
+    }
+
+    private func persistSettingsBackup(_ value: AppConfiguration) {
+        do {
+            try FileManager.default.createDirectory(at: settingsBackupDirectory, withIntermediateDirectories: true)
+            let data = try JSONEncoder.pretty.encode(SettingsExport(configuration: value))
+            try data.write(to: settingsBackupDirectory.appending(path: "Camera-Zapper-Settings-Latest.json"), options: .atomic)
+            let formatter = DateFormatter(); formatter.locale = Locale(identifier: "en_US_POSIX"); formatter.dateFormat = "yyyy-MM-dd"
+            try data.write(to: settingsBackupDirectory.appending(path: "Camera-Zapper-Settings-\(formatter.string(from: .now)).json"), options: .atomic)
+        } catch {
+            // The primary configuration save remains authoritative. Backup
+            // failures are intentionally non-fatal and never expose secrets.
+        }
+    }
+
+    private func persistPreImportSettingsBackup(_ value: AppConfiguration) throws {
+        try FileManager.default.createDirectory(at: settingsBackupDirectory, withIntermediateDirectories: true)
+        let data = try JSONEncoder.pretty.encode(SettingsExport(configuration: value))
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        let filename = "Camera-Zapper-Settings-Before-Import-\(formatter.string(from: .now)).json"
+        try data.write(to: settingsBackupDirectory.appending(path: filename), options: .atomic)
     }
 
     private func scheduleDeviceSave() {

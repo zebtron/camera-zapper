@@ -9,6 +9,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
 }
 
 struct SettingsView: View {
+    @EnvironmentObject private var store: AppStore
     @State private var selection: SettingsSection? = .services
     var body: some View {
         NavigationSplitView {
@@ -26,6 +27,9 @@ struct SettingsView: View {
             case .safety: SafetySettingsView()
             case .about: AboutView()
             }
+        }
+        .toolbar {
+            ToolbarItem { Button("Run Setup Again", systemImage: "wand.and.stars") { store.runSetupAgain() } }
         }
     }
 }
@@ -52,12 +56,12 @@ struct AboutView: View {
                 Link("zebtron.com/zapper", destination: URL(string: "https://zebtron.com/zapper/")!).font(.title3)
                 HStack(spacing: 16) {
                     Link("Privacy", destination: URL(string: "https://zebtron.com/zapper/#privacy")!)
-                    Link("Report a Bug", destination: URL(string: "mailto:zapper@zebtron.com?subject=Camera%20Zapper%201.346%20bug%20report&body=Please%20describe%20what%20happened%3A%0A%0AWhat%20you%20expected%3A%0A%0ADevice%20model%20and%20connection%20method%3A%0A%0AmacOS%20version%3A%0A%0ALast%20visible%20error%3A%0A%0APlease%20remove%20passwords%2C%20API%20secrets%2C%20OAuth%20tokens%2C%20personal%20paths%2C%20and%20private%20filenames%20before%20sending.")!)
+                    Link("Report a Bug", destination: URL(string: "mailto:zapper@zebtron.com?subject=Camera%20Zapper%201.347%20bug%20report&body=Please%20describe%20what%20happened%3A%0A%0AWhat%20you%20expected%3A%0A%0ADevice%20model%20and%20connection%20method%3A%0A%0AmacOS%20version%3A%0A%0ALast%20visible%20error%3A%0A%0APlease%20remove%20passwords%2C%20API%20secrets%2C%20OAuth%20tokens%2C%20personal%20paths%2C%20and%20private%20filenames%20before%20sending.")!)
                     Link("Support on Ko-fi", destination: URL(string: "https://ko-fi.com/zebtron")!)
                 }.font(.caption)
                 Text("Bug reports are appreciated. Camera Zapper is independently maintained in limited spare time, so responses and fixes may take a while. Thank you for being patient.")
                     .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: 460)
-                Text("Beta version 1.346").font(.caption).foregroundStyle(.tertiary)
+                Text("Beta version 1.347").font(.caption).foregroundStyle(.tertiary)
             }
             Spacer()
         }.padding(40).frame(maxWidth: .infinity, maxHeight: .infinity).navigationTitle("About")
@@ -274,6 +278,7 @@ struct OfflineCacheSettingsView: View {
 
 struct GeneralSettingsView: View {
     @EnvironmentObject private var store: AppStore
+    @State private var settingsTransferStatus: String?
     var body: some View {
         Form {
             Section("Automation") {
@@ -282,7 +287,36 @@ struct GeneralSettingsView: View {
                 Toggle("Show macOS notifications", isOn: $store.configuration.notifications)
             }
             Section("Unknown files") { Toggle("Preserve unrecognized files alongside the archive", isOn: $store.configuration.preserveUnknownFiles) }
+            Section("Settings portability") {
+                Text("Camera Zapper automatically keeps version-independent settings backups in Application Support. Export a copy for another Mac or before an upgrade. Passwords, API secrets, OAuth tokens, and Keychain items are never included.")
+                    .font(.caption).foregroundStyle(.secondary)
+                HStack {
+                    Button("Export Settings…", systemImage: "square.and.arrow.up") { exportSettings() }
+                    Button("Import Settings…", systemImage: "square.and.arrow.down") { importSettings() }
+                    Button("Show Automatic Backups", systemImage: "folder") {
+                        try? FileManager.default.createDirectory(at: store.settingsBackupFolder, withIntermediateDirectories: true)
+                        NSWorkspace.shared.open(store.settingsBackupFolder)
+                    }
+                }
+                if let settingsTransferStatus { Text(settingsTransferStatus).font(.caption).foregroundStyle(settingsTransferStatus.hasPrefix("Failed") ? .orange : .green) }
+                Text("After import, authorize Google Photos, private YouTube, and Flickr on the destination Mac. Their credentials remain in each Mac's Keychain.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
         }.formStyle(.grouped).navigationTitle("General")
+    }
+    private func exportSettings() {
+        let panel = NSSavePanel(); panel.allowedContentTypes = [.json]; panel.nameFieldStringValue = "Camera-Zapper-Settings-1.347.json"; panel.prompt = "Export Settings"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do { try store.exportSettings(to: url); settingsTransferStatus = "Settings exported successfully." }
+        catch { settingsTransferStatus = "Failed to export settings: \(error.localizedDescription)" }
+    }
+    private func importSettings() {
+        let panel = NSOpenPanel(); panel.allowedContentTypes = [.json]; panel.canChooseDirectories = false; panel.allowsMultipleSelection = false; panel.prompt = "Choose Settings"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        let confirmation = NSAlert(); confirmation.messageText = "Replace current Camera Zapper settings?"; confirmation.informativeText = "The current configuration is already preserved in Settings Backups. Imported cloud services will need authorization on this Mac."; confirmation.addButton(withTitle: "Import Settings"); confirmation.addButton(withTitle: "Cancel")
+        guard confirmation.runModal() == .alertFirstButtonReturn else { return }
+        do { try store.importSettings(from: url); settingsTransferStatus = "Settings imported. Finish setup and reauthorize cloud accounts." }
+        catch { settingsTransferStatus = "Failed to import settings: \(error.localizedDescription)" }
     }
 }
 
@@ -402,7 +436,7 @@ struct ServiceEditorRow: View {
                     Image(systemName: store.configuration.services[index].kind == .localStorage ? "lock.fill" : "line.3.horizontal")
                         .foregroundStyle(.tertiary).frame(width: 18)
                         .help(store.configuration.services[index].kind == .localStorage ? "Local archive is always first" : "Drag to change execution priority")
-                    Toggle("", isOn: $store.configuration.services[index].isEnabled).labelsHidden()
+                    Toggle("", isOn: Binding(get: { store.configuration.services[index].isEnabled }, set: { store.setServiceEnabled(serviceID, $0) })).labelsHidden()
                         .disabled(store.configuration.services[index].kind == .localStorage)
                     Image(systemName: icon(store.configuration.services[index].kind)).frame(width: 24).foregroundStyle(.tint)
                     VStack(alignment: .leading, spacing: 3) {
@@ -437,7 +471,7 @@ struct ServiceEditorRow: View {
                     }
                     Toggle("Must succeed before deleting source", isOn: $store.configuration.services[index].isRequiredForDeletion)
                         .toggleStyle(.checkbox)
-                        .disabled(store.configuration.services[index].kind == .localStorage)
+                        .disabled(store.configuration.services[index].kind == .localStorage || !store.configuration.services[index].isEnabled)
                         .help(store.configuration.services[index].kind == .localStorage ? "The verified local archive is always required" : "This service must succeed before originals are safe to delete")
                     Button { expanded.toggle() } label: { Image(systemName: expanded ? "chevron.up" : "slider.horizontal.3") }.buttonStyle(.borderless).help("Configure service")
                     if store.configuration.services[index].kind != .localStorage {
@@ -476,11 +510,11 @@ struct ServiceEditorRow: View {
     private func icon(_ kind: ServiceKind) -> String { switch kind { case .localStorage: "internaldrive.fill"; case .storage: "externaldrive.fill"; case .s3: "shippingbox.fill"; case .youtube: "play.rectangle.fill"; case .googlePhotos: "photo.badge.arrow.down"; case .flickr: "circle.grid.2x1.fill"; case .amazonPhotos: "photo.stack"; case .iCloud: "icloud.fill"; case .photos: "photo.on.rectangle.angled"; case .neofinder: "books.vertical.fill"; case .derivative: "film.stack" } }
     private func capabilityIcon(_ service: ServiceConfiguration) -> String {
         let text = store.serviceCapability(service)
-        return text.hasPrefix("Operational") ? "checkmark.circle.fill" : text.hasPrefix("Unavailable") || text.hasPrefix("Failed") ? "exclamationmark.triangle.fill" : text.hasPrefix("Setup required") ? "person.crop.circle.badge.exclamationmark" : "clock.fill"
+        return text.hasPrefix("Operational") ? "checkmark.circle.fill" : text.hasPrefix("Unavailable") || text.hasPrefix("Failed") || text.hasPrefix("Needs attention") ? "exclamationmark.triangle.fill" : text.hasPrefix("Not set up") ? "circle.dashed" : "gearshape.2.fill"
     }
     private func capabilityColor(_ service: ServiceConfiguration) -> Color {
         let text = store.serviceCapability(service)
-        return text.hasPrefix("Operational") || text.hasPrefix("Catch-up complete") ? .green : text.hasPrefix("Unavailable") || text.hasPrefix("Failed") ? .orange : .secondary
+        return text.hasPrefix("Operational") || text.hasPrefix("Catch-up complete") ? .green : text.hasPrefix("Unavailable") || text.hasPrefix("Failed") || text.hasPrefix("Needs attention") ? .orange : .secondary
     }
     private func actionLabel(_ service: ServiceConfiguration) -> String {
         if (service.kind == .googlePhotos && !store.googlePhotosAuthorized) || (service.kind == .youtube && !store.youtubeAuthorized) || (service.kind == .flickr && !store.flickrAuthorized) { return "Set Up & Catch Up…" }
@@ -605,7 +639,7 @@ struct ServiceConfigurationPanel: View {
     }
     private func chooseDestination() {
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.allowsMultipleSelection = false; panel.prompt = "Use Destination"
-        if panel.runModal() == .OK, let url = panel.url { store.configuration.services[index].destination = url.path }
+        if panel.runModal() == .OK, let url = panel.url { store.updateServiceDestination(service.id, path: url.path) }
     }
 }
 

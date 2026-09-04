@@ -37,9 +37,9 @@ swift test --disable-sandbox
 codesign --verify --deep --strict "dist/Zebtron Camera zapper - automated backup.app"
 ```
 
-Runtime state lives in `~/Library/Application Support/Zebtron Camera Zapper/` and must never be included in a handoff. Version 1.346 is ad-hoc signed. Public distribution still requires Apple Developer ID signing, hardened runtime/entitlements review, notarization, OAuth production setup, privacy/API verification, and an updater.
+Runtime state lives in `~/Library/Application Support/Zebtron Camera Zapper/` and must never be included in a handoff. Version 1.347 is ad-hoc signed. Public distribution still requires Apple Developer ID signing, hardened runtime/entitlements review, notarization, OAuth production setup, privacy/API verification, and an updater.
 
-## 1.346 pre-release hardening
+## 1.347 pre-release hardening
 
 - New-user defaults contain no personal hostnames, device nicknames, shares, or volume names.
 - Local archive defaults to `~/Pictures/Camera Zapper/Archive`; NAS/cloud destinations start disabled.

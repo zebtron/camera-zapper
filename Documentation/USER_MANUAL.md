@@ -1,21 +1,33 @@
 # Zebtron Camera Zapper User Manual
 
-![Camera Zapper 1.346 dashboard with generic first-run defaults](Screenshots/dashboard-1.346.png)
+![Camera Zapper 1.347 dashboard with generic first-run defaults](Screenshots/dashboard-1.347.png)
 
 ## What it does
 
 Camera Zapper gives cameras and Android devices one auditable workflow: **move, sync, and delete**. Files are copied to interruption-safe local staging, SHA-256 verified, sent to enabled destinations in priority order, and recorded in durable receipts. Source deletion remains blocked until every required destination succeeds.
 
+## First-run setup
+
+The Setup Wizard opens automatically on a new installation and after an upgrade when setup is incomplete. It is also available through **Settings → Run Setup Again**.
+
+1. Read the one-way workflow and privacy summary. Cloud uploads are private-only and Camera Zapper has no telemetry.
+2. Confirm or choose the Local Device Archive. Press **Test** to create a temporary file, verify its SHA-256 after read-back, and remove it.
+3. Select only the destinations you intend to use. Unselected services remain **Not set up**: they do not warn, nag, count as required, or block deletion.
+4. For each chosen service, decide whether it must verify before originals may be deleted.
+5. Configure and test only the chosen services. For NAS, mount the SMB share with macOS, choose its real folder, then test it. Google Photos authorization comes before YouTube because YouTube reuses the Google client.
+6. Drag services into execution order. The local archive remains first.
+7. Review the status summary and finish. Use noncritical media for the first complete test.
+
+Service status has four meanings:
+
+- **Not set up:** neutral and disabled; never an error or deletion gate.
+- **Configuring:** setup is in progress and the app shows the next action.
+- **Operational:** configuration passed its test.
+- **Needs attention:** a previously chosen/configured service is now failing. It blocks deletion only when you explicitly marked it required.
+
+You may skip the wizard. A gentle **Finish setup** card remains on the dashboard, and the wizard opens again on a later launch while setup is incomplete. Deletion stays **Always ask**; the wizard never enables automatic deletion.
+
 ## Everyday one-button workflow
-
-### First launch
-
-1. Open **Settings → Services & Priority** before connecting irreplaceable media.
-2. Review the generic Local Device Archive under `~/Pictures/Camera Zapper/Archive`.
-3. Enable a NAS only after macOS has mounted it and you have selected the real writable folder. The shipped `/Volumes/NAS` and `your-nas.local` values are examples, not a configured server.
-4. Enable only the libraries and cloud services you intend to authorize.
-5. Leave deletion on **Always ask** while testing. Automatic source deletion is not enabled by default.
-6. Use **I’ve Reviewed My Destinations** only after the warning list is clear.
 
 1. Connect and unlock the camera, card, phone, or tablet.
 2. Confirm the correct device is **Online**.
@@ -25,6 +37,25 @@ Camera Zapper gives cameras and Android devices one auditable workflow: **move, 
 6. Read the final summary. Failed or blocked files remain on the source and in local staging.
 
 The app resumes from receipts after a quit, disconnect, restart, or network failure.
+
+## Back up or move your settings
+
+Camera Zapper stores its live configuration outside the application bundle. Replacing the app during an upgrade does not intentionally remove this folder.
+
+Settings location: `~/Library/Application Support/Zebtron Camera Zapper/`
+
+It also maintains these recovery files:
+
+- `Settings Backups/Camera-Zapper-Settings-Latest.json`
+- one dated settings snapshot per day
+
+Open **Settings → General → Settings portability** to:
+
+- **Export Settings** before an upgrade or to configure another Mac.
+- **Import Settings** from a previous export. The current configuration is backed up before replacement.
+- **Show Automatic Backups** in Finder.
+
+The export includes service selection, priority, deletion gates, destinations, accepted media, offline-cache rules, and coordination preferences. It never contains passwords, NAS credentials, API secrets, OAuth tokens, or Keychain records. After importing on another Mac, reauthorize Google Photos, private YouTube, and Flickr and verify machine-specific paths before the first run.
 
 ## Advanced controls
 
@@ -99,7 +130,7 @@ Choose **Always Allow** for the correctly named app. Different ad-hoc builds can
 
 ## Public beta status
 
-Version 1.346 is suitable for controlled beta testing, but the downloadable public build still needs stable Apple Developer ID signing, hardened-runtime review, notarization, and production OAuth/API review. Until those release gates are complete, macOS may show additional security prompts and testers should keep an independent backup.
+Version 1.347 is suitable for controlled beta testing, but the downloadable public build still needs stable Apple Developer ID signing, hardened-runtime review, notarization, and production OAuth/API review. Until those release gates are complete, macOS may show additional security prompts and testers should keep an independent backup.
 
 ## Support
 

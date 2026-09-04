@@ -22,6 +22,20 @@ import Testing
     #expect(MediaClassifier.kind(for: URL(fileURLWithPath: "README.TXT")) == nil)
 }
 
+@Test func freshInstallServicesAreNeutralUntilChosen() {
+    let services = ServiceConfiguration.defaults
+    let local = services.first { $0.kind == .localStorage }
+    #expect(local?.isEnabled == true)
+    #expect(local?.isRequiredForDeletion == true)
+    #expect(local?.setupState == .operational)
+
+    for service in services where service.kind != .localStorage {
+        #expect(service.isEnabled == false)
+        #expect(service.isRequiredForDeletion == false)
+        #expect(service.setupState == nil || service.setupState == .notSetUp)
+    }
+}
+
 @Test func backupEngineDeletionPreflightRequiresVerifiedCopy() throws {
     let root = FileManager.default.temporaryDirectory.appending(path: "CameraZapperDeleteTest-\(UUID().uuidString)")
     defer { try? FileManager.default.removeItem(at: root) }

@@ -9,7 +9,7 @@
 
 ## Install from the DMG
 
-1. Open `Zebtron-Camera-Zapper-1.346.dmg`.
+1. Open `Zebtron-Camera-Zapper-1.347.dmg`.
 2. Drag **Zebtron Camera Zapper** into **Applications**.
 3. Control-click the app and choose **Open** the first time.
 4. Approve requested Photos, removable-media, folder, and automation permissions.

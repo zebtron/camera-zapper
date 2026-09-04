@@ -39,6 +39,10 @@ struct ContentView: View {
             case .settings: SettingsView()
             }
         }
+        .sheet(isPresented: $store.needsInitialSetup) {
+            SetupWizardView().environmentObject(store)
+        }
+        .onAppear { selection = .dashboard }
     }
 }
 

@@ -4,7 +4,7 @@
 
 - `INSTALLATION.md` - macOS installation, permissions, Android/ADB setup, and first-run configuration.
 - `USER_MANUAL.md` - complete current-app workflow, services, formats, privacy, recovery, deletion safety, and troubleshooting.
-- `Zebtron-Camera-Zapper-1.346-User-Manual.pdf` - formatted distributable edition of the current manual.
+- `Zebtron-Camera-Zapper-1.347-User-Manual.pdf` - formatted distributable edition of the current manual.
 - `DEVELOPER_HANDOFF.md` - architecture, safety invariants, repository map, build steps, and public-release requirements.
 - `Screenshots/camera-zapper-finished-app.png` - real finished-app dashboard capture for documentation.
 
