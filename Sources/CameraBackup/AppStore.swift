@@ -4,6 +4,11 @@ import CryptoKit
 
 @MainActor
 final class AppStore: ObservableObject {
+    struct ServiceProblem: Identifiable {
+        let service: ServiceConfiguration
+        let detail: String
+        var id: UUID { service.id }
+    }
     struct TransferLogEntry: Identifiable {
         let id = UUID()
         let timestamp = Date()
@@ -36,7 +41,43 @@ final class AppStore: ObservableObject {
     @Published var previewedDeviceIDs: Set<UUID> = []
     @Published var needsInitialSetup: Bool
     @Published var configurationWarnings: [String] = []
+    @Published var requestedSettingsServiceID: UUID?
     let adbAvailable: Bool
+
+    var activeServiceProblems: [ServiceProblem] {
+        let liveProblems = configuration.services.compactMap { service -> ServiceProblem? in
+            guard let operation = serviceOperations[service.id],
+                  operation.hasPrefix("Failed") || operation.hasPrefix("Needs attention") else { return nil }
+            let detail = operation
+                .replacingOccurrences(of: "Failed · ", with: "")
+                .replacingOccurrences(of: "Needs attention · ", with: "")
+            return ServiceProblem(service: service, detail: detail)
+        }
+        if !liveProblems.isEmpty { return liveProblems }
+
+        // Activity events are persisted, so an actionable service error survives an app restart.
+        guard status == .failed,
+              let event = events.first(where: { $0.severity == .error }),
+              let service = configuration.services.first(where: {
+                  event.message.localizedCaseInsensitiveContains($0.name)
+              }) else { return [] }
+        return [ServiceProblem(service: service, detail: event.message)]
+    }
+
+    var activeProblemSummary: String? {
+        if let problem = activeServiceProblems.first { return "\(problem.service.name) — \(problem.detail)" }
+        guard status == .failed else { return nil }
+        return transferLog.reversed().first(where: {
+            $0.message.localizedCaseInsensitiveContains("failed") ||
+            $0.message.localizedCaseInsensitiveContains("stopped") ||
+            $0.message.localizedCaseInsensitiveContains("blocked")
+        })?.message ?? events.first(where: { $0.severity == .error })?.message
+    }
+
+    func openServiceSettings(_ serviceID: UUID) {
+        requestedSettingsServiceID = serviceID
+    }
+
 
     private let configurationURL: URL
     private let settingsBackupDirectory: URL
@@ -475,9 +516,20 @@ final class AppStore: ObservableObject {
                         if service.isRequiredForDeletion { requiredFailures.append(service.name) }
                         continue
                     }
+                    self.status = .backingUp
+                    self.currentFile = "Syncing \(service.name)"
                     self.serviceOperations[service.id] = "Starting…"; self.appendTransferLog("Starting service: \(service.name)")
                     do {
-                        try await reprocessor.run(service: service, localService: local) { completed, total, message in await MainActor.run { self.serviceOperations[service.id] = "\(completed) of \(total) · \(message)" } }
+                        try await reprocessor.run(service: service, localService: local) { completed, total, message in
+                            await MainActor.run {
+                                let detail = "\(completed) of \(total) · \(message)"
+                                self.serviceOperations[service.id] = detail
+                                self.currentFile = "\(service.name): \(message)"
+                                if self.transferLog.last?.message != "\(service.name): \(detail)" {
+                                    self.appendTransferLog("\(service.name): \(detail)")
+                                }
+                            }
+                        }
                         self.serviceOperations[service.id] = "Catch-up complete"; self.appendTransferLog("Completed service: \(service.name)")
                     } catch {
                         self.serviceOperations[service.id] = "Failed · \(error.localizedDescription)"
@@ -496,6 +548,7 @@ final class AppStore: ObservableObject {
                     self.record("Full workflow completed and deleted \(deleted) verified originals from \(device.displayName)", severity: .success)
                     if let index = self.devices.firstIndex(where: { $0.id == deviceID }) { self.devices[index].filesWaiting = max(0, self.devices[index].filesWaiting - deleted) }
                 }
+                self.currentFile = nil
                 if var value = self.transferProgress { value.phase = deleteAfterSuccess ? "Workflow and deletion complete" : "Full workflow complete"; value.message = deleteAfterSuccess ? "All required services verified; source originals deleted" : "All operational enabled services finished in priority order"; value.fraction = 1; self.transferProgress = value }
                 self.status = .review
                 if !deleteAfterSuccess { self.record("Full workflow completed for \(device.displayName)", severity: .success) }

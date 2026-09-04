@@ -43,6 +43,9 @@ struct ContentView: View {
             SetupWizardView().environmentObject(store)
         }
         .onAppear { selection = .dashboard }
+        .onChange(of: store.requestedSettingsServiceID) { _, serviceID in
+            if serviceID != nil { selection = .settings }
+        }
     }
 }
 

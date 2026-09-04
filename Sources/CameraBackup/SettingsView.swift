@@ -56,12 +56,12 @@ struct AboutView: View {
                 Link("zebtron.com/zapper", destination: URL(string: "https://zebtron.com/zapper/")!).font(.title3)
                 HStack(spacing: 16) {
                     Link("Privacy", destination: URL(string: "https://zebtron.com/zapper/#privacy")!)
-                    Link("Report a Bug", destination: URL(string: "mailto:zapper@zebtron.com?subject=Camera%20Zapper%201.347%20bug%20report&body=Please%20describe%20what%20happened%3A%0A%0AWhat%20you%20expected%3A%0A%0ADevice%20model%20and%20connection%20method%3A%0A%0AmacOS%20version%3A%0A%0ALast%20visible%20error%3A%0A%0APlease%20remove%20passwords%2C%20API%20secrets%2C%20OAuth%20tokens%2C%20personal%20paths%2C%20and%20private%20filenames%20before%20sending.")!)
+                    Link("Report a Bug", destination: URL(string: "mailto:zapper@zebtron.com?subject=Camera%20Zapper%201.348%20bug%20report&body=Please%20describe%20what%20happened%3A%0A%0AWhat%20you%20expected%3A%0A%0ADevice%20model%20and%20connection%20method%3A%0A%0AmacOS%20version%3A%0A%0ALast%20visible%20error%3A%0A%0APlease%20remove%20passwords%2C%20API%20secrets%2C%20OAuth%20tokens%2C%20personal%20paths%2C%20and%20private%20filenames%20before%20sending.")!)
                     Link("Support on Ko-fi", destination: URL(string: "https://ko-fi.com/zebtron")!)
                 }.font(.caption)
                 Text("Bug reports are appreciated. Camera Zapper is independently maintained in limited spare time, so responses and fixes may take a while. Thank you for being patient.")
                     .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: 460)
-                Text("Beta version 1.347").font(.caption).foregroundStyle(.tertiary)
+                Text("Beta version 1.348").font(.caption).foregroundStyle(.tertiary)
             }
             Spacer()
         }.padding(40).frame(maxWidth: .infinity, maxHeight: .infinity).navigationTitle("About")
@@ -305,7 +305,7 @@ struct GeneralSettingsView: View {
         }.formStyle(.grouped).navigationTitle("General")
     }
     private func exportSettings() {
-        let panel = NSSavePanel(); panel.allowedContentTypes = [.json]; panel.nameFieldStringValue = "Camera-Zapper-Settings-1.347.json"; panel.prompt = "Export Settings"
+        let panel = NSSavePanel(); panel.allowedContentTypes = [.json]; panel.nameFieldStringValue = "Camera-Zapper-Settings-1.348.json"; panel.prompt = "Export Settings"
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do { try store.exportSettings(to: url); settingsTransferStatus = "Settings exported successfully." }
         catch { settingsTransferStatus = "Failed to export settings: \(error.localizedDescription)" }
@@ -350,17 +350,26 @@ struct ServicesSettingsView: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }.padding(10).frame(maxWidth: .infinity, alignment: .leading).background(.green.opacity(0.09), in: RoundedRectangle(cornerRadius: 10))
-            List {
-                ForEach(ordered) { service in
-                    ServiceEditorRow(serviceID: service.id)
-                        .onDrag {
-                            guard service.kind != .localStorage else { return NSItemProvider() }
-                            store.draggedServiceID = service.id
-                            return NSItemProvider(object: service.id.uuidString as NSString)
-                        }
-                        .onDrop(of: [.text], delegate: ServicePriorityDropDelegate(targetID: service.id, store: store))
-                }.onMove(perform: store.moveServices)
-            }.listStyle(.inset)
+            ScrollViewReader { proxy in
+                List {
+                    ForEach(ordered) { service in
+                        ServiceEditorRow(serviceID: service.id)
+                            .id(service.id)
+                            .onDrag {
+                                guard service.kind != .localStorage else { return NSItemProvider() }
+                                store.draggedServiceID = service.id
+                                return NSItemProvider(object: service.id.uuidString as NSString)
+                            }
+                            .onDrop(of: [.text], delegate: ServicePriorityDropDelegate(targetID: service.id, store: store))
+                    }.onMove(perform: store.moveServices)
+                }.listStyle(.inset)
+                    .onAppear {
+                        if let serviceID = store.requestedSettingsServiceID { proxy.scrollTo(serviceID, anchor: .center) }
+                    }
+                    .onChange(of: store.requestedSettingsServiceID) { _, serviceID in
+                        if let serviceID { withAnimation { proxy.scrollTo(serviceID, anchor: .center) } }
+                    }
+            }
             HStack {
                 Menu("Add Service", systemImage: "plus") {
                     Section("Destinations") {
@@ -473,7 +482,9 @@ struct ServiceEditorRow: View {
                         .toggleStyle(.checkbox)
                         .disabled(store.configuration.services[index].kind == .localStorage || !store.configuration.services[index].isEnabled)
                         .help(store.configuration.services[index].kind == .localStorage ? "The verified local archive is always required" : "This service must succeed before originals are safe to delete")
-                    Button { expanded.toggle() } label: { Image(systemName: expanded ? "chevron.up" : "slider.horizontal.3") }.buttonStyle(.borderless).help("Configure service")
+                    Button(expanded ? "Close" : "Configure…", systemImage: expanded ? "chevron.up" : "slider.horizontal.3") { expanded.toggle() }
+                        .buttonStyle(.bordered)
+                        .help("Configure this service without rerunning the setup wizard")
                     if store.configuration.services[index].kind != .localStorage {
                         Button(role: .destructive) { confirmDeletion = true } label: { Image(systemName: "trash") }.buttonStyle(.borderless).help("Remove service")
                     }
@@ -486,9 +497,37 @@ struct ServiceEditorRow: View {
                 }
                 if expanded {
                     Divider()
+                    if store.configuration.services[index].kind == .googlePhotos {
+                        HStack {
+                            Label("OAuth setup", systemImage: "person.badge.key.fill").font(.headline)
+                            Spacer()
+                            Button("Choose OAuth JSON / Reauthorize…", systemImage: "doc.badge.gearshape") { chooseGoogleCredentials = true }
+                            Button("Test Authorization", systemImage: "checkmark.circle") { store.testService(serviceID) }
+                        }
+                        Text("Choose the Desktop OAuth client JSON downloaded from Google Cloud. Camera Zapper stores the client configuration and account token securely; use this again whenever authorization expires or you change Google projects.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    if store.configuration.services[index].kind == .flickr {
+                        HStack {
+                            Label("Flickr authorization", systemImage: "person.badge.key.fill").font(.headline)
+                            Spacer()
+                            Button("Enter API Key / Reauthorize…", systemImage: "key") { showFlickrSetup = true }
+                            Button("Test Authorization", systemImage: "checkmark.circle") { store.testService(serviceID) }
+                        }
+                    }
+                    if store.configuration.services[index].kind == .youtube {
+                        HStack {
+                            Label("YouTube authorization", systemImage: "person.badge.key.fill").font(.headline)
+                            Spacer()
+                            Button("Authorize / Reauthorize…", systemImage: "person.crop.circle.badge.checkmark") { store.configureYouTube(serviceID: serviceID) }
+                            Button("Test Authorization", systemImage: "checkmark.circle") { store.testService(serviceID) }
+                        }
+                    }
                     ServiceConfigurationPanel(index: index)
                 }
             }.padding(.vertical, 7).opacity(store.configuration.services[index].isEnabled ? 1 : 0.55)
+                .onAppear { if store.requestedSettingsServiceID == serviceID { expanded = true } }
+                .onChange(of: store.requestedSettingsServiceID) { _, requested in if requested == serviceID { expanded = true } }
                 .confirmationDialog("Remove \(store.configuration.services[index].name)?", isPresented: $confirmDeletion, titleVisibility: .visible) {
                     Button("Remove Service", role: .destructive) { store.deleteService(serviceID) }
                     Button("Cancel", role: .cancel) { }

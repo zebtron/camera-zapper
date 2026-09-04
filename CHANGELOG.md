@@ -4,15 +4,22 @@ All notable changes to **Zebtron Camera Zapper** are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/);
 releases use the app's build-number versioning.
 
-## [1.347] — 2026-08-30 · Controlled beta
+## [1.348] — 2026-09-04 · Controlled beta
 
 ### Added
+- Added one large **Sync All Locations & Delete** action for each connected device. After an interrupted or failed run it becomes **Resume Sync All Locations & Delete** and safely skips completed receipts.
+- Added live per-service workflow status showing the service currently running, current file/action, completed and queued services, item counts, and verbose timestamped activity.
+- Added an on-by-default **Show detailed activity** preference; turning it off collapses the verbose log without reducing recorded workflow detail.
+- Added actionable dashboard errors that identify the affected service, preserve the provider's useful error detail, and open that service's configuration directly.
+- Added clearly labeled per-service **Configure** controls independent of the setup wizard, including Google OAuth JSON selection/reauthorization and connection testing.
 - Added an accessible seven-step first-run Setup Wizard covering the local safety archive, service selection, deletion gates, per-service configuration, priority, and first-run review.
 - Added a reusable **Run Setup Again** action and a gentle **Finish setup** dashboard affordance.
 - Added a real file-destination probe that writes a temporary payload, verifies its SHA-256 after read-back, and deletes the probe.
 - Added explicit settings export/import plus automatic version-independent JSON backups in Application Support.
 
 ### Changed
+- Required-service failures stop deletion with a named reason; optional failures remain visible but do not invalidate completed storage or cloud receipts.
+- Advanced partial-workflow actions remain available below the single primary action.
 - Introduced explicit **Not set up**, **Configuring**, **Operational**, and **Needs attention** service states.
 - Fresh installs now enable only the local archive. Unselected services remain neutral, never warn, and never block deletion.
 - Selecting a destination folder immediately updates the path used by validation and re-runs the destination test.
@@ -66,6 +73,6 @@ First public (controlled-beta) release, open-sourced under the MIT license.
 - This build is **ad-hoc signed** — on first launch, Control-click the app and choose **Open**.
   It is not yet notarized, and cloud OAuth (Google / Flickr / YouTube) is still in review.
 
-[1.347]: https://github.com/zebtron/camera-zapper/releases/tag/v1.347
+[1.348]: https://github.com/zebtron/camera-zapper/releases/tag/v1.348
 [1.346]: https://github.com/zebtron/camera-zapper/releases/tag/v1.346
 [1.345]: https://github.com/zebtron/camera-zapper/releases/tag/v1.345

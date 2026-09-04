@@ -152,14 +152,20 @@ struct AndroidConnectionView: View {
                         }
                         Divider()
                     }
+                    if store.configuration.services.contains(where: { $0.isEnabled && $0.kind != .localStorage && $0.kind != .derivative }) {
+                        WorkflowServicesStatus()
+                    }
                     VStack(alignment: .leading, spacing: 10) {
-                        Button("RUN COMPLETE BACKUP, VERIFY & DELETE…", systemImage: "checkmark.shield.fill", role: .destructive) { confirmFullWorkflowDeletion = true }
+                        Button(primaryWorkflowLabel, systemImage: store.status == .failed ? "arrow.clockwise.circle.fill" : "checkmark.shield.fill", role: .destructive) { confirmFullWorkflowDeletion = true }
                             .buttonStyle(.borderedProminent)
                             .tint(.red)
                             .controlSize(.large)
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .disabled(device?.isConnected != true || store.status == .scanning || store.status == .backingUp || store.status == .verifying)
+                        Text(primaryWorkflowExplanation)
+                            .font(.caption)
+                            .foregroundStyle(store.status == .failed ? .orange : .secondary)
 
                         HStack {
                             Text("Advanced actions").font(.caption).foregroundStyle(.secondary)
@@ -216,6 +222,14 @@ struct AndroidConnectionView: View {
         guard let device else { return "Run full workflow?" }
         return store.isDeviceApproved(device) ? "Run full workflow?" : "Add this new device and run its first workflow?"
     }
+    private var primaryWorkflowLabel: String {
+        store.status == .failed ? "RESUME SYNC ALL LOCATIONS & DELETE…" : "SYNC ALL LOCATIONS & DELETE…"
+    }
+    private var primaryWorkflowExplanation: String {
+        store.status == .failed
+            ? "Completed receipts are skipped. Unfinished services are retried, required destinations are rechecked, and originals are deleted only after every required check passes."
+            : "One click scans, creates the verified local copy, syncs every enabled location in priority order, rechecks required receipts, and deletes confirmed originals from this device."
+    }
     private var localDestination: String {
         store.configuration.services.first(where: { $0.kind == .localStorage })?.destination ?? "Local Device Archive"
     }
@@ -230,6 +244,7 @@ struct AndroidConnectionView: View {
 }
 
 private struct AndroidTransferStatus: View {
+    @AppStorage("showDetailedActivity") private var showDetailedActivity = true
     let progress: EngineProgress
     let log: [AppStore.TransferLogEntry]
     let destination: String
@@ -283,24 +298,28 @@ private struct AndroidTransferStatus: View {
             HStack {
                 Text("Operation log").font(.caption.weight(.semibold))
                 Spacer()
+                Toggle("Show detailed activity", isOn: $showDetailedActivity)
+                    .toggleStyle(.switch).controlSize(.small)
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     Text(isRunning ? "Active · elapsed \(elapsed(at: context.date))" : "Last operation")
                         .font(.caption.monospacedDigit()).foregroundStyle(isRunning ? .green : .secondary)
                 }
             }
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 4) {
-                        ForEach(log.suffix(25)) { entry in
-                            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                Text(entry.timestamp, format: .dateTime.hour().minute().second())
-                                    .foregroundStyle(.secondary).monospacedDigit().frame(width: 70, alignment: .leading)
-                                Text(entry.message).textSelection(.enabled)
-                            }.font(.caption).id(entry.id)
-                        }
-                    }.frame(maxWidth: .infinity, alignment: .leading)
-                }.frame(minHeight: 72, maxHeight: 140)
-                    .onChange(of: log.count) { _, _ in if let last = log.last { proxy.scrollTo(last.id, anchor: .bottom) } }
+            if showDetailedActivity {
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 4) {
+                            ForEach(log.suffix(100)) { entry in
+                                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                    Text(entry.timestamp, format: .dateTime.hour().minute().second())
+                                        .foregroundStyle(.secondary).monospacedDigit().frame(width: 70, alignment: .leading)
+                                    Text(entry.message).textSelection(.enabled)
+                                }.font(.caption).id(entry.id)
+                            }
+                        }.frame(maxWidth: .infinity, alignment: .leading)
+                    }.frame(minHeight: 100, maxHeight: 240)
+                        .onChange(of: log.count) { _, _ in if let last = log.last { proxy.scrollTo(last.id, anchor: .bottom) } }
+                }
             }
         }.padding(.vertical, 3)
     }
@@ -331,6 +350,46 @@ private struct AndroidTransferStatus: View {
         case "Cancelled": "xmark.circle"
         default: "gearshape.2"
         }
+    }
+}
+
+private struct WorkflowServicesStatus: View {
+    @EnvironmentObject private var store: AppStore
+    private var services: [ServiceConfiguration] {
+        store.configuration.services.filter { $0.isEnabled && $0.kind != .localStorage && $0.kind != .derivative }.sorted { $0.priority < $1.priority }
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack {
+                Text("Sync locations").font(.headline)
+                Spacer()
+                Text("Runs in priority order").font(.caption).foregroundStyle(.secondary)
+            }
+            ForEach(services) { service in
+                let operation = store.serviceOperations[service.id]
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Image(systemName: statusIcon(operation)).foregroundStyle(statusColor(operation)).frame(width: 18)
+                    Text(service.name).font(.subheadline.weight(.semibold)).frame(width: 150, alignment: .leading)
+                    Text(operation ?? "Waiting in priority order").font(.caption).foregroundStyle(operation == nil ? .secondary : statusColor(operation)).textSelection(.enabled)
+                    Spacer()
+                    if operation?.hasPrefix("Failed") == true {
+                        Button("Fix…") { store.openServiceSettings(service.id) }.controlSize(.small)
+                    }
+                }
+            }
+        }.padding(12).background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 10))
+    }
+    private func statusIcon(_ value: String?) -> String {
+        guard let value else { return "clock" }
+        if value.hasPrefix("Failed") || value.hasPrefix("Needs attention") { return "exclamationmark.triangle.fill" }
+        if value.hasPrefix("Catch-up complete") { return "checkmark.circle.fill" }
+        return "arrow.triangle.2.circlepath"
+    }
+    private func statusColor(_ value: String?) -> Color {
+        guard let value else { return .secondary }
+        if value.hasPrefix("Failed") || value.hasPrefix("Needs attention") { return .orange }
+        if value.hasPrefix("Catch-up complete") { return .green }
+        return .blue
     }
 }
 

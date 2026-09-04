@@ -1,8 +1,16 @@
-# Zebtron Camera Zapper 1.347 - Controlled Beta
+# Zebtron Camera Zapper 1.348 - Controlled Beta
 
-## First-run setup without false errors
+## One-button workflow with visible progress and recovery
 
-Version 1.347 adds a first-run Setup Wizard and corrects the configuration-state model. A brand-new install now starts with a verified local safety archive and neutral, disabled destinations instead of treating example NAS values as errors.
+Version 1.348 makes the normal workflow one obvious action: **Sync All Locations & Delete**. The connected-device page shows the service and file currently being processed, per-service state, counts, and a detailed timestamped log. After a failure or interruption, the button changes to **Resume Sync All Locations & Delete** and safely reuses completed receipts.
+
+## Actionable errors and direct service configuration
+
+- Dashboard warnings identify the affected service and retain the useful provider error instead of displaying only “Problem.”
+- Service problems provide a direct **Open [Service] Settings** repair action.
+- Every service now has a clearly labeled **Configure…** button outside the first-run wizard.
+- Google Photos configuration directly exposes OAuth JSON selection/reauthorization and authorization testing. Flickr and YouTube provide equivalent controls.
+- Detailed activity is visible by default and can be collapsed with **Show detailed activity**.
 
 ## Setup Wizard and service states
 
@@ -29,7 +37,7 @@ Version 1.347 adds a first-run Setup Wizard and corrects the configuration-state
 - Made optional compatibility conversion report the built-in macOS `avconvert` dependency accurately.
 - Added VoiceOver semantics to saved/connected device rows.
 - Added deletion-preflight regression tests for verified content, wrong size, wrong hash, and partial-file cleanup.
-- Updated the app, manual, website copy, bug-report template, and package metadata to 1.347.
+- Updated the app, manual, website copy, bug-report template, and package metadata to 1.348.
 
 ## Safety behavior
 

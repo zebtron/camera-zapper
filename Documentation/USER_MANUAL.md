@@ -1,6 +1,6 @@
 # Zebtron Camera Zapper User Manual
 
-![Camera Zapper 1.347 dashboard with generic first-run defaults](Screenshots/dashboard-1.347.png)
+![Camera Zapper 1.348 dashboard with generic first-run defaults](Screenshots/dashboard-1.348.png)
 
 ## What it does
 
@@ -28,6 +28,12 @@ Service status has four meanings:
 You may skip the wizard. A gentle **Finish setup** card remains on the dashboard, and the wizard opens again on a later launch while setup is incomplete. Deletion stays **Always ask**; the wizard never enables automatic deletion.
 
 ## Everyday one-button workflow
+
+For a connected device, use the large red **Sync All Locations & Delete** button. It scans the configured media folders, creates and SHA-256 verifies the local staging copy, runs every enabled service in priority order, verifies every service marked **Must succeed before deleting source**, and only then deletes confirmed originals from that device.
+
+During the run, the device page identifies the active service and current filename/action. Each enabled destination is shown as queued, running, complete, or failed. **Show detailed activity** is enabled by default and displays timestamped file-level actions, receipt skips, provider pacing, uploads, verification, and errors. Turn it off when you want a quieter display; this changes presentation only.
+
+After an interruption or failure, the primary action changes to **Resume Sync All Locations & Delete**. Resume reuses completed receipts, retries unfinished services, performs the complete deletion preflight again, and deletes nothing unless every required check passes.
 
 1. Connect and unlock the camera, card, phone, or tablet.
 2. Confirm the correct device is **Online**.
@@ -66,6 +72,8 @@ The export includes service selection, priority, deletion gates, destinations, a
 - Per-service **Catch Up** or **Resume** processes staged files for one destination.
 
 ## Services and priority
+
+The first-run wizard is optional after initial setup. Open **Settings → Services & Priority** at any time and choose **Configure…** on an individual service. Google Photos exposes **Choose OAuth JSON / Reauthorize** and **Test Authorization** directly; Flickr and YouTube provide equivalent authorization controls. A service-specific dashboard error includes an **Open [Service] Settings** action so the repair path is never hidden.
 
 Enabled services run top to bottom. Drag to reorder. **Must succeed before deleting source** makes a service a deletion gate.
 
@@ -130,7 +138,7 @@ Choose **Always Allow** for the correctly named app. Different ad-hoc builds can
 
 ## Public beta status
 
-Version 1.347 is suitable for controlled beta testing, but the downloadable public build still needs stable Apple Developer ID signing, hardened-runtime review, notarization, and production OAuth/API review. Until those release gates are complete, macOS may show additional security prompts and testers should keep an independent backup.
+Version 1.348 is suitable for controlled beta testing, but the downloadable public build still needs stable Apple Developer ID signing, hardened-runtime review, notarization, and production OAuth/API review. Until those release gates are complete, macOS may show additional security prompts and testers should keep an independent backup.
 
 ## Support
 

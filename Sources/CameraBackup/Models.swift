@@ -177,7 +177,7 @@ struct SettingsExport: Codable {
 
     init(configuration: AppConfiguration) {
         schemaVersion = 1
-        appVersion = "1.347"
+        appVersion = "1.348"
         exportedAt = .now
         self.configuration = configuration
     }

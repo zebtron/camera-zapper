@@ -48,7 +48,7 @@ struct SetupWizardView: View {
                     Text("Step \(step + 1) of \(titles.count) · \(titles[step])").foregroundStyle(.secondary)
                 }
                 Spacer()
-                Text("BETA 1.347").font(.caption.bold()).foregroundStyle(.blue)
+                Text("BETA 1.348").font(.caption.bold()).foregroundStyle(.blue)
             }
             ProgressView(value: Double(step + 1), total: Double(titles.count))
                 .accessibilityLabel("Setup progress")

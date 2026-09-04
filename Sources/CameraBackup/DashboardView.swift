@@ -12,16 +12,41 @@ struct DashboardView: View {
                     VStack(alignment: .leading) {
                         HStack(spacing: 10) {
                             Text("Zebtron Camera zapper").font(.largeTitle.bold())
-                            Text("BETA 1.347").font(.caption.bold()).foregroundStyle(.green).padding(.horizontal, 7).padding(.vertical, 4).background(.green.opacity(0.12), in: Capsule())
+                            Text("BETA 1.348").font(.caption.bold()).foregroundStyle(.green).padding(.horizontal, 7).padding(.vertical, 4).background(.green.opacity(0.12), in: Capsule())
                         }
                         Text("move · sync · delete").font(.headline).foregroundStyle(.secondary)
                         Text(statusMessage).font(.caption).foregroundStyle(.secondary)
                     }
                     Spacer()
-                    StatusBadge(status: store.status)
+                    StatusBadge(status: store.status, hasProblem: store.activeProblemSummary != nil)
                 }
 
                 if store.status != .idle { ProgressView(value: store.progress) }
+
+                if let summary = store.activeProblemSummary {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Label("Action needed", systemImage: "exclamationmark.triangle.fill")
+                            .font(.headline).foregroundStyle(.orange)
+                        if store.activeServiceProblems.isEmpty {
+                            Text(summary).textSelection(.enabled)
+                        }
+                        ForEach(store.activeServiceProblems) { problem in
+                            HStack(alignment: .firstTextBaseline) {
+                                Text("\(problem.service.name): \(problem.detail)")
+                                    .font(.callout).textSelection(.enabled)
+                                Spacer()
+                                Button("Open \(problem.service.name) Settings…", systemImage: "slider.horizontal.3") {
+                                    store.openServiceSettings(problem.service.id)
+                                }
+                            }
+                        }
+                        Text("Completed receipts remain valid. Resume from the connected device to retry unfinished work, recheck every required location, and delete only after all required checks pass.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    .padding(14).frame(maxWidth: .infinity, alignment: .leading)
+                    .background(.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(.orange.opacity(0.35)))
+                }
 
                 if store.setupIncomplete {
                     InitialSetupCard(onSetUp: onSetUpDestinations)
@@ -148,11 +173,14 @@ struct CacheStatusCard: View {
 
 struct StatusBadge: View {
     let status: BackupStatus
+    var hasProblem = false
     var body: some View {
-        Label(status.rawValue, systemImage: status == .failed ? "exclamationmark.triangle.fill" : status == .idle ? "checkmark.circle.fill" : "arrow.triangle.2.circlepath")
+        Label(hasProblem ? "Action needed" : status.rawValue, systemImage: hasProblem || status == .failed ? "exclamationmark.triangle.fill" : status == .idle ? "checkmark.circle.fill" : "arrow.triangle.2.circlepath")
             .padding(.horizontal, 12).padding(.vertical, 7)
             .background(.regularMaterial, in: Capsule())
+            .help(hasProblem ? storeProblemHelp : status.rawValue)
     }
+    private var storeProblemHelp: String { "Open the visible problem details for the affected service and repair action." }
 }
 
 struct DeviceCard: View {
