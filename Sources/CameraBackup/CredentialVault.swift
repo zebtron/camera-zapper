@@ -38,6 +38,25 @@ final class CameraZapperCredentialVault: @unchecked Sendable {
         return legacy
     }
 
+    func remove(_ accounts: [String]) throws {
+        lock.lock(); defer { lock.unlock() }
+        var vault = loadVaultLocked()
+        for account in accounts {
+            vault.removeValue(forKey: account)
+            let legacyQuery: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: service,
+                kSecAttrAccount as String: account
+            ]
+            let status = SecItemDelete(legacyQuery as CFDictionary)
+            guard status == errSecSuccess || status == errSecItemNotFound else {
+                throw CredentialVaultError.keychain(status)
+            }
+        }
+        try saveVaultLocked(vault)
+        cached = vault
+    }
+
     private func loadVaultLocked() -> [String: Data] {
         if let cached { return cached }
         guard let data = loadKeychainItem(account: vaultAccount),

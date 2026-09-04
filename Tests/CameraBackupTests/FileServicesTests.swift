@@ -65,3 +65,11 @@ import Testing
     let leftovers = try FileManager.default.contentsOfDirectory(atPath: root.path).filter { $0.contains(".partial.") }
     #expect(leftovers.isEmpty)
 }
+
+@Test func flickrOversizePolicyOnlyBlocksRequiredApplicableMedia() {
+    #expect(FlickrUploadPolicy.sizeLimit(for: .photo) == 195_000_000)
+    #expect(FlickrUploadPolicy.sizeLimit(for: .video) == 990_000_000)
+    #expect(!FlickrUploadPolicy.shouldBlockForSkippedOversize(serviceIsRequired: false, mediaIsAccepted: true))
+    #expect(!FlickrUploadPolicy.shouldBlockForSkippedOversize(serviceIsRequired: true, mediaIsAccepted: false))
+    #expect(FlickrUploadPolicy.shouldBlockForSkippedOversize(serviceIsRequired: true, mediaIsAccepted: true))
+}

@@ -1,6 +1,6 @@
 # Zebtron Camera Zapper User Manual
 
-![Camera Zapper 1.348 dashboard with generic first-run defaults](Screenshots/dashboard-1.348.png)
+![Camera Zapper 1.349 dashboard with generic first-run defaults](Screenshots/dashboard-1.349.png)
 
 ## What it does
 
@@ -99,6 +99,14 @@ Destination APIs accept narrower sets:
 
 - Google Photos and Apple Photos: JPG/JPEG, HEIC, PNG, GIF, TIFF, DNG, MOV, MP4, and M4V as currently implemented.
 - Flickr: JPG/JPEG, PNG, GIF, TIFF, BMP, MOV, MP4, M4V, AVI, WMV, MPEG/MPG, 3GP, M2TS, OGG, and OGV, subject to Flickr limits (photos under 200 MB and videos under 1 GB; the app uses a small safety margin).
+
+### Flickr connection and oversized files
+
+Open **Settings -> Services & Priority -> Flickr -> Configure**. **Test Live Login** calls Flickr's `flickr.test.login` API and displays the connected account; it does not rely only on a saved local status flag. Use **Reconnect** to replace the complete API-key and access-token set, or **Disconnect** to remove Flickr credentials from Camera Zapper's Keychain vault.
+
+API credentials and account tokens are committed together only after browser authorization finishes successfully. If authorization is cancelled, the prior complete credential set remains intact. An invalid or expired token changes Flickr to **Needs attention** and asks you to reconnect.
+
+Files above Camera Zapper's Flickr safety margins (195 MB for a photo or 990 MB for a video) are listed and skipped before upload. When Flickr is optional, eligible files still complete and the service summary reports the skipped count. A skipped oversized file blocks source deletion only when Flickr is marked **Must succeed** and its media type is enabled for Flickr. NAS and YouTube receipts remain independent.
 - YouTube: MOV, MP4, M4V, MKV, and AVI in the current adapter.
 - NeoFinder and local/NAS archives operate on verified originals rather than a cloud codec list.
 
@@ -138,7 +146,7 @@ Choose **Always Allow** for the correctly named app. Different ad-hoc builds can
 
 ## Public beta status
 
-Version 1.348 is suitable for controlled beta testing, but the downloadable public build still needs stable Apple Developer ID signing, hardened-runtime review, notarization, and production OAuth/API review. Until those release gates are complete, macOS may show additional security prompts and testers should keep an independent backup.
+Version 1.349 is suitable for controlled beta testing, but the downloadable public build still needs stable Apple Developer ID signing, hardened-runtime review, notarization, and production OAuth/API review. Until those release gates are complete, macOS may show additional security prompts and testers should keep an independent backup.
 
 ## Support
 

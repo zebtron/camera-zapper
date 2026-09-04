@@ -1,8 +1,17 @@
-# Zebtron Camera Zapper 1.348 - Controlled Beta
+# Zebtron Camera Zapper 1.349 - Controlled Beta
+
+## Flickr authorization and completion fixes
+
+- Flickr now validates saved credentials against `flickr.test.login` instead of trusting a local Boolean.
+- The service configuration shows the connected account and provides **Test Live Login**, **Reconnect**, and **Disconnect** actions.
+- API credentials and the resulting access token are saved atomically only after the complete OAuth exchange succeeds.
+- Cancelling or failing reauthorization no longer leaves a new API secret paired with an old access token.
+- Oversized photos and videos are clearly counted as skipped. They no longer make an optional Flickr destination look completely broken.
+- An oversized item blocks source deletion only when Flickr is marked required and Flickr accepts that item's media type.
 
 ## One-button workflow with visible progress and recovery
 
-Version 1.348 makes the normal workflow one obvious action: **Sync All Locations & Delete**. The connected-device page shows the service and file currently being processed, per-service state, counts, and a detailed timestamped log. After a failure or interruption, the button changes to **Resume Sync All Locations & Delete** and safely reuses completed receipts.
+Version 1.349 makes the normal workflow one obvious action: **Sync All Locations & Delete**. The connected-device page shows the service and file currently being processed, per-service state, counts, and a detailed timestamped log. After a failure or interruption, the button changes to **Resume Sync All Locations & Delete** and safely reuses completed receipts.
 
 ## Actionable errors and direct service configuration
 
@@ -37,7 +46,7 @@ Version 1.348 makes the normal workflow one obvious action: **Sync All Locations
 - Made optional compatibility conversion report the built-in macOS `avconvert` dependency accurately.
 - Added VoiceOver semantics to saved/connected device rows.
 - Added deletion-preflight regression tests for verified content, wrong size, wrong hash, and partial-file cleanup.
-- Updated the app, manual, website copy, bug-report template, and package metadata to 1.348.
+- Updated the app, manual, website copy, bug-report template, and package metadata to 1.349.
 
 ## Safety behavior
 

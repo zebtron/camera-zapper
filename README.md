@@ -11,9 +11,9 @@ Free for macOS · **[zebtron.com/zapper](https://zebtron.com/zapper/)** · made 
 
 The app icon depicts Camera Zapper's one-way workflow: one camera sends media outward to generic cloud, local-disk, and NAS destinations. It intentionally contains no circular sync arrows or third-party service logos.
 
-![Camera Zapper 1.348 dashboard with generic first-run defaults](Documentation/Screenshots/dashboard-1.348.png)
+![Camera Zapper 1.349 dashboard with generic first-run defaults](Documentation/Screenshots/dashboard-1.349.png)
 
-> ⚑ **Controlled beta (v1.348).** This is a hands‑on testing build and is **ad‑hoc signed** — on
+> ⚑ **Controlled beta (v1.349).** This is a hands‑on testing build and is **ad‑hoc signed** — on
 > first launch, Control‑click the app and choose **Open**. It is *not* notarized yet, and cloud
 > OAuth (Google / Flickr / YouTube) is still in review. Start with noncritical media and keep
 > deletion confirmation on while you test.
@@ -80,7 +80,7 @@ App state lives under `~/Library/Application Support/Zebtron Camera Zapper/`.
 ## Documentation
 
 - [Installation](Documentation/INSTALLATION.md)
-- [User manual](Documentation/USER_MANUAL.md) · [PDF](Documentation/Zebtron-Camera-Zapper-1.348-User-Manual.pdf)
+- [User manual](Documentation/USER_MANUAL.md) · [PDF](Documentation/Zebtron-Camera-Zapper-1.349-User-Manual.pdf)
 - [Developer handoff](Documentation/DEVELOPER_HANDOFF.md)
 
 ## Reporting bugs
