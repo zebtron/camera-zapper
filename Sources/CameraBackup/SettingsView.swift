@@ -56,12 +56,12 @@ struct AboutView: View {
                 Link("zebtron.com/zapper", destination: URL(string: "https://zebtron.com/zapper/")!).font(.title3)
                 HStack(spacing: 16) {
                     Link("Privacy", destination: URL(string: "https://zebtron.com/zapper/#privacy")!)
-                    Link("Report a Bug", destination: URL(string: "mailto:zapper@zebtron.com?subject=Camera%20Zapper%201.349%20bug%20report&body=Please%20describe%20what%20happened%3A%0A%0AWhat%20you%20expected%3A%0A%0ADevice%20model%20and%20connection%20method%3A%0A%0AmacOS%20version%3A%0A%0ALast%20visible%20error%3A%0A%0APlease%20remove%20passwords%2C%20API%20secrets%2C%20OAuth%20tokens%2C%20personal%20paths%2C%20and%20private%20filenames%20before%20sending.")!)
+                    Link("Report a Bug", destination: URL(string: "mailto:zapper@zebtron.com?subject=Camera%20Zapper%201.350%20bug%20report&body=Please%20describe%20what%20happened%3A%0A%0AWhat%20you%20expected%3A%0A%0ADevice%20model%20and%20connection%20method%3A%0A%0AmacOS%20version%3A%0A%0ALast%20visible%20error%3A%0A%0APlease%20remove%20passwords%2C%20API%20secrets%2C%20OAuth%20tokens%2C%20personal%20paths%2C%20and%20private%20filenames%20before%20sending.")!)
                     Link("Support on Ko-fi", destination: URL(string: "https://ko-fi.com/zebtron")!)
                 }.font(.caption)
                 Text("Bug reports are appreciated. Camera Zapper is independently maintained in limited spare time, so responses and fixes may take a while. Thank you for being patient.")
                     .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: 460)
-                Text("Beta version 1.349").font(.caption).foregroundStyle(.tertiary)
+                Text("Beta version 1.350").font(.caption).foregroundStyle(.tertiary)
             }
             Spacer()
         }.padding(40).frame(maxWidth: .infinity, maxHeight: .infinity).navigationTitle("About")
@@ -305,7 +305,7 @@ struct GeneralSettingsView: View {
         }.formStyle(.grouped).navigationTitle("General")
     }
     private func exportSettings() {
-        let panel = NSSavePanel(); panel.allowedContentTypes = [.json]; panel.nameFieldStringValue = "Camera-Zapper-Settings-1.349.json"; panel.prompt = "Export Settings"
+        let panel = NSSavePanel(); panel.allowedContentTypes = [.json]; panel.nameFieldStringValue = "Camera-Zapper-Settings-1.350.json"; panel.prompt = "Export Settings"
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do { try store.exportSettings(to: url); settingsTransferStatus = "Settings exported successfully." }
         catch { settingsTransferStatus = "Failed to export settings: \(error.localizedDescription)" }

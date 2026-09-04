@@ -1,6 +1,8 @@
 # Zebtron Camera Zapper User Manual
 
-![Camera Zapper 1.349 dashboard with generic first-run defaults](Screenshots/dashboard-1.349.png)
+> Version 1.350 uses Flickr's canonical API endpoint for its live account check and suppresses raw OAuth diagnostics that could contain account tokens.
+
+![Camera Zapper dashboard with generic first-run defaults](Screenshots/dashboard.png)
 
 ## What it does
 
@@ -146,7 +148,7 @@ Choose **Always Allow** for the correctly named app. Different ad-hoc builds can
 
 ## Public beta status
 
-Version 1.349 is suitable for controlled beta testing, but the downloadable public build still needs stable Apple Developer ID signing, hardened-runtime review, notarization, and production OAuth/API review. Until those release gates are complete, macOS may show additional security prompts and testers should keep an independent backup.
+Version 1.350 is suitable for controlled beta testing, but the downloadable public build still needs stable Apple Developer ID signing, hardened-runtime review, notarization, and production OAuth/API review. Until those release gates are complete, macOS may show additional security prompts and testers should keep an independent backup.
 
 ## Support
 

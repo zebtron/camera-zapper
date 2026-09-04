@@ -12,7 +12,7 @@ struct DashboardView: View {
                     VStack(alignment: .leading) {
                         HStack(spacing: 10) {
                             Text("Zebtron Camera zapper").font(.largeTitle.bold())
-                            Text("BETA 1.349").font(.caption.bold()).foregroundStyle(.green).padding(.horizontal, 7).padding(.vertical, 4).background(.green.opacity(0.12), in: Capsule())
+                            Text("BETA 1.350").font(.caption.bold()).foregroundStyle(.green).padding(.horizontal, 7).padding(.vertical, 4).background(.green.opacity(0.12), in: Capsule())
                         }
                         Text("move · sync · delete").font(.headline).foregroundStyle(.secondary)
                         Text(statusMessage).font(.caption).foregroundStyle(.secondary)

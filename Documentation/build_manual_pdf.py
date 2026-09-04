@@ -9,7 +9,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Page
 
 ROOT = Path(__file__).parent
 SOURCE = ROOT / "USER_MANUAL.md"
-OUTPUT = ROOT / "Zebtron-Camera-Zapper-1.349-User-Manual.pdf"
+OUTPUT = ROOT / "Zebtron-Camera-Zapper-1.350-User-Manual.pdf"
 
 styles = getSampleStyleSheet()
 styles.add(ParagraphStyle(name="ManualTitle", parent=styles["Title"], fontName="Helvetica-Bold", fontSize=25, leading=30, textColor=colors.HexColor("#1467D2"), alignment=TA_CENTER, spaceAfter=10))
@@ -30,16 +30,16 @@ def footer(canvas, doc):
     canvas.saveState()
     canvas.setStrokeColor(colors.HexColor("#D6DCE2")); canvas.line(0.7*inch, 0.52*inch, 7.8*inch, 0.52*inch)
     canvas.setFont("Helvetica", 7.5); canvas.setFillColor(colors.HexColor("#6C7680"))
-    canvas.drawString(0.7*inch, 0.35*inch, "Zebtron Camera Zapper 1.349 - Controlled Beta")
+    canvas.drawString(0.7*inch, 0.35*inch, "Zebtron Camera Zapper 1.350 - Controlled Beta")
     canvas.drawRightString(7.8*inch, 0.35*inch, f"Page {doc.page}")
     canvas.restoreState()
 
-doc = SimpleDocTemplate(str(OUTPUT), pagesize=letter, rightMargin=0.7*inch, leftMargin=0.7*inch, topMargin=0.65*inch, bottomMargin=0.68*inch, title="Zebtron Camera Zapper 1.349 User Manual", author="Zebtron")
+doc = SimpleDocTemplate(str(OUTPUT), pagesize=letter, rightMargin=0.7*inch, leftMargin=0.7*inch, topMargin=0.65*inch, bottomMargin=0.68*inch, title="Zebtron Camera Zapper 1.350 User Manual", author="Zebtron")
 story = [Spacer(1, 0.15*inch), Paragraph("Zebtron Camera Zapper", styles["ManualTitle"]), Paragraph("Automated backup for macOS - move, sync, and delete safely", styles["ManualSubtitle"])]
 shot = ROOT / "Screenshots" / "dashboard-1.348.png"
 if shot.exists():
     image = Image(str(shot)); image._restrictSize(7.05*inch, 3.72*inch); story += [image, Spacer(1, 0.22*inch)]
-story += [Paragraph("Version 1.349 controlled beta", styles["H2Manual"]), Paragraph("A safety-first workflow for verified Android, camera-card, local, NAS, photo-library, cloud, and catalog destinations.", styles["BodyManual"]), PageBreak()]
+story += [Paragraph("Version 1.350 controlled beta", styles["H2Manual"]), Paragraph("A safety-first workflow for verified Android, camera-card, local, NAS, photo-library, cloud, and catalog destinations.", styles["BodyManual"]), PageBreak()]
 wizard_shot = ROOT / "Screenshots" / "setup-wizard-1.348.png"
 if wizard_shot.exists():
     story += [Paragraph("First-run Setup Wizard", styles["H1Manual"]), Paragraph("A new installation begins with a neutral, guided setup experience. Nothing is reported as an error until the user has chosen and configured that service.", styles["BodyManual"])]

@@ -103,7 +103,9 @@ actor FlickrClient {
     func testAuthorization() async throws -> FlickrAuthorizationStatus {
         loadStoredStateIfNeeded()
         guard let credentials, let access else { throw FlickrError.notAuthorized }
-        let endpoint = URL(string: "https://www.flickr.com/services/rest")!
+        // OAuth 1.0 signs the exact request URL. Use the canonical REST host
+        // used by Flickr's maintained SDK rather than the legacy www alias.
+        let endpoint = URL(string: "https://api.flickr.com/services/rest")!
         var parameters = oauthParameters(key: credentials.key, token: access.token)
         parameters["method"] = "flickr.test.login"
         parameters["format"] = "json"
@@ -133,7 +135,9 @@ actor FlickrClient {
         var components = URLComponents(url: url, resolvingAgainstBaseURL: false)!
         components.queryItems = signed.sorted { $0.key < $1.key }.map { .init(name: $0.key, value: $0.value) }
         let (data, response) = try await URLSession.shared.data(from: components.url!)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else { throw FlickrError.api(String(decoding: data, as: UTF8.self)) }
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw FlickrError.api(safeProviderError(String(decoding: data, as: UTF8.self)))
+        }
         return String(decoding: data, as: UTF8.self)
     }
     private func oauthParameters(key: String, token: String?) -> [String: String] {
@@ -150,6 +154,22 @@ actor FlickrClient {
     }
     private func oauthEncode(_ value: String) -> String { value.addingPercentEncoding(withAllowedCharacters: CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~")) ?? value }
     private func formValues(_ text: String) -> [String: String] { Dictionary(uniqueKeysWithValues: text.split(separator: "&").compactMap { pair in let bits = pair.split(separator: "=", maxSplits: 1).map(String.init); return bits.count == 2 ? (bits[0].removingPercentEncoding ?? bits[0], bits[1].removingPercentEncoding ?? bits[1]) : nil }) }
+    private func safeProviderError(_ text: String) -> String {
+        let values = formValues(text)
+        if let problem = values["oauth_problem"] {
+            switch problem {
+            case "signature_invalid":
+                return "Flickr rejected the signed account check. Reconnect Flickr; if this repeats, confirm the API key and secret belong to the same Flickr app."
+            case "token_rejected", "token_expired":
+                return "Flickr authorization expired. Reconnect Flickr."
+            default:
+                return "Flickr authorization failed (\(problem)). Reconnect Flickr."
+            }
+        }
+        // debug_sbs can contain the consumer key and OAuth access token.
+        if text.contains("debug_sbs") { return "Flickr rejected the signed request. Reconnect Flickr." }
+        return String(text.prefix(500))
+    }
     private func loadStoredStateIfNeeded() {
         if credentials == nil || access == nil,
            let data = keychain.load("flickr.state.v2"),

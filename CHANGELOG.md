@@ -4,6 +4,13 @@ All notable changes to **Zebtron Camera Zapper** are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/);
 releases use the app's build-number versioning.
 
+## [1.350] — 2026-09-04 · Controlled beta
+
+### Fixed
+- Fixed Flickr's post-authorization signed account check by using the canonical `api.flickr.com` REST endpoint.
+- Sanitized Flickr OAuth failures so `debug_sbs`, API keys, and OAuth access tokens are never displayed or written to application logs.
+- Added clearer guidance when Flickr rejects a saved authorization.
+
 ## [1.349] — 2026-09-04 · Controlled beta
 
 ### Added
@@ -77,6 +84,7 @@ First public (controlled-beta) release, open-sourced under the MIT license.
 - This build is **ad-hoc signed** — on first launch, Control-click the app and choose **Open**.
   It is not yet notarized, and cloud OAuth (Google / Flickr / YouTube) is still in review.
 
+[1.350]: https://github.com/zebtron/camera-zapper/releases/tag/v1.350
 [1.349]: https://github.com/zebtron/camera-zapper/releases/tag/v1.349
 [1.346]: https://github.com/zebtron/camera-zapper/releases/tag/v1.346
 [1.345]: https://github.com/zebtron/camera-zapper/releases/tag/v1.345

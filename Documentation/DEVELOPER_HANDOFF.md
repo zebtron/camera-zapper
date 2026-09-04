@@ -37,13 +37,13 @@ swift test --disable-sandbox
 codesign --verify --deep --strict "dist/Zebtron Camera zapper - automated backup.app"
 ```
 
-Runtime state lives in `~/Library/Application Support/Zebtron Camera Zapper/` and must never be included in a handoff. Version 1.349 is ad-hoc signed. Public distribution still requires Apple Developer ID signing, hardened runtime/entitlements review, notarization, OAuth production setup, privacy/API verification, and an updater.
+Runtime state lives in `~/Library/Application Support/Zebtron Camera Zapper/` and must never be included in a handoff. Version 1.350 is ad-hoc signed. Public distribution still requires Apple Developer ID signing, hardened runtime/entitlements review, notarization, OAuth production setup, privacy/API verification, and an updater.
 
-## 1.349 Flickr reliability update
+## 1.350 Flickr reliability update
 
 Flickr credentials now use the atomic `flickr.state.v2` vault record. Legacy `flickr.credentials` and `flickr.access` records remain readable for migration but are removed by Disconnect. Authorization is verified with `flickr.test.login`; `UserDefaults` is only a launch-time hint to avoid unsolicited Keychain prompts. Oversized items are successful skips for optional Flickr services and deletion blockers only when Flickr is required for an accepted media type.
 
-## 1.349 pre-release hardening
+## 1.350 pre-release hardening
 
 - New-user defaults contain no personal hostnames, device nicknames, shares, or volume names.
 - Local archive defaults to `~/Pictures/Camera Zapper/Archive`; NAS/cloud destinations start disabled.
